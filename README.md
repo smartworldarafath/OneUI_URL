@@ -34,7 +34,7 @@
 
 ---
 
-## 📁 Project Architecture & Directory Structure
+## 📁 Project Architecture & Master Tree
 
 ```text
 OneUI_URL/
@@ -98,38 +98,106 @@ OneUI_URL/
 
 ## ✨ Features & Functionality
 
-Detailed breakdown of features and how each functions under the hood:
+Detailed breakdown of features and how each functions under the hood, mapped to its exact codebase implementation:
 
 ### 1. 🔗 Multiple URL Shortener Providers
-* **Description**: Users can select from a wide array of reliable URL-shortening engines rather than relying on a single service.
-* **How It Works**: The app integrates REST APIs for over 20 providers (including `da.gd`, `is.gd`, `v.gd`, `tinyurl.com`, `t.ly`, `lstu`, `tny.im`, `murl`, `spoome`, and `zws.im`). When a request is triggered, the app communicates with the chosen provider's endpoint. If a provider experiences rate limits or server downtime, users can seamlessly switch to another service with a single tap.
+* **Description**: Users can choose from over 20 reliable URL-shortening engines rather than relying on a single third-party service.
+* **How It Works**: When a user selects a provider and triggers shortening, the app dispatches an asynchronous network request through Volley (`RequestQueueSingleton`). Each service is decoupled as an independent object implementing `ShortURLProvider`. If an endpoint is rate-limited or unavailable, users can immediately toggle to another provider with instant fallback.
+
+```text
+ShortURLProvider_System/
+├── ShortURLProvider.kt                 <-- Base ShortURLProvider interface & contract
+├── ShortURLProviderCompanion.kt        <-- Registry of all active, grouped & disabled services
+├── Dagd.kt                             <-- da.gd provider implementation
+├── Tinyurl.kt                          <-- tinyurl.com provider implementation
+├── VgdIsgd.kt                          <-- is.gd & v.gd provider implementation
+├── Tly.kt                              <-- t.ly and sub-domain provider engine
+├── Kurzelinks.kt                       <-- ogy.de, t1p.de, ocn.de, kurzelinks.de engines
+└── Spoome.kt                           <-- Standard and Emoji URL shortener engines
+```
+
+---
 
 ### 2. ✏️ Custom Alias Support
-* **Description**: Allows creating human-readable and personalized short links instead of random alphanumeric strings.
-* **How It Works**: For providers supporting custom aliases (such as `tinyurl`, `da.gd`, and `v.gd`), the app validates the desired alias format (character constraints, min/max length) client-side before dispatching the creation request to the provider's API.
+* **Description**: Create personalized, branded, and easy-to-remember short links instead of arbitrary random characters.
+* **How It Works**: Providers supporting customized slugs declare an `AliasConfig` specifying allowed character sets and character length limits. The client checks input validity in real time prior to API transmission, preventing invalid network roundtrips and ensuring deterministic error handling.
+
+```text
+Custom_Alias_Engine/
+├── AliasConfig.kt                      <-- Min/Max length thresholds and regex patterns
+├── AddURLViewModel.kt                  <-- Real-time validation & user feedback StateFlow
+└── AddURLActivity.kt                   <-- Input textfield & error banner interface
+```
+
+---
 
 ### 3. 🛡️ URL Safety & Malware Verification
-* **Description**: Ensures security by screening every target URL for malicious content prior to shortening.
-* **How It Works**: Through `GenerateURLUseCase`, the application queries the **URLhaus** threat intelligence database in real time. If the target URL is flagged as phishing, malware distribution, botnet C&C, or abusive redirector, the shortening process aborts immediately and warns the user with actionable security reports.
+* **Description**: Proactively scans target destinations for malware, phishing, and spam before executing the shortening process.
+* **How It Works**: `GenerateURLUseCase` queries the **URLhaus** Threat Intelligence API (`CheckURLSafetyUseCase`) using the destination URL. If identified on spam or malicious blacklists (Spamhaus, SURBL, URLhaus), the operation is halted, displaying detailed diagnostic findings and VirusTotal links directly to the user.
+
+```text
+Safety_Verification_Engine/
+├── CheckURLSafetyUseCase.kt            <-- URLhaus API client & threat assessment
+├── GenerateURLUseCase.kt               <-- Intercepting safety pipeline before provider call
+└── AddURLErrorDialogs.kt               <-- Security alert dialogs with VirusTotal links
+```
+
+---
 
 ### 4. 📱 Samsung OneUI Design System
-* **Description**: Ergonomically structured interface crafted for effortless one-handed operation on modern large displays.
-* **How It Works**: Utilizing Samsung SESL components, screen layouts separate viewing areas (top) and actionable interaction areas (bottom). It natively supports automatic light/dark theming, smooth spring animations, and native system haptic feedback.
+* **Description**: Engineered specifically for fluid, comfortable one-handed navigation on large smartphone displays.
+* **How It Works**: Implemented using the official Samsung SESL (Samsung Experience Support Library) wrappers (`io.github.tribalfs:oneui-design`). The interface divides into an upper viewing Header zone and lower interaction Actionable zone, complete with native spring animations, ripple touch feedback, and automated light/dark mode adaptation.
+
+```text
+OneUI_Design_System/
+├── res/layout/activity_main.xml        <-- OneUI Appbar & collapsible toolbar structure
+├── res/values/styles.xml               <-- Theme.OneUI primary and secondary accents
+├── res/values-night/styles.xml         <-- Amoled dark mode color definitions
+└── SESL_Components/                    <-- SeslRecyclerView, SeslSwitchPreference & SeslButtons
+```
+
+---
 
 ### 5. 📷 QR Code Generation & Sharing
-* **Description**: Instantly generates sharp QR codes for every generated short URL or custom input link.
-* **How It Works**:
-  - **Save to Storage**: Exports QR codes directly into device storage as high-quality PNG images via Android's Storage Access Framework.
-  - **Copy to Clipboard**: Copies the bitmap data directly to the clipboard for rapid pasting into messaging and document apps.
-  - **Share Options**: Integrates with Android ShareSheet and Quick Share for direct transfer across nearby devices and installed applications.
+* **Description**: Instantly renders sharp, customizable QR codes for any created short link or arbitrary input string.
+* **How It Works**: The `GenerateQRCodeUseCase` generates vector-accurate Bitmaps using `QrEncoder`. The `QRCodeExportStateHolder` coordinates background execution via coroutines—allowing one-tap export to storage via Android's Storage Access Framework, system clipboard copy, or dispatch to nearby devices via Samsung Quick Share and Android ShareSheet.
+
+```text
+QRCode_Engine/
+├── GenerateQRCodeUseCase.kt            <-- High-resolution bitmap renderer with custom styling
+├── QRCodeCache.kt                      <-- In-memory LRU cache preventing duplicate renders
+├── QRCodeExporter.kt                   <-- MediaStore & Storage Access Framework exporter
+├── QRCodeExport.kt                     <-- StateHolder managing Save, Copy & Share states
+└── QRBottomSheet.kt                    <-- Fluid OneUI modal sheet with full export actions
+```
+
+---
 
 ### 6. 📋 Instant Clipboard & Auto-Copy
-* **Description**: Streamlines workflow by eliminating the need to manually copy newly generated links.
-* **How It Works**: When the **Automatic copying** option is toggled on in Settings, successful link creation automatically places the shortened URL onto the system clipboard alongside visual toast confirmation.
+* **Description**: Eliminates repetitive steps by immediately copying successfully shortened URLs straight to the device clipboard.
+* **How It Works**: Governed by the `auto_copy_on_create` preference stored in `UserSettings`. Once `GenerateURLUseCase` signals success, `AddURLViewModel` interacts with Android's `ClipboardManager`, accompanied by an audible/haptic feedback toast notification.
+
+```text
+AutoCopy_Service/
+├── UserSettings.kt                     <-- DataStore / SharedPreferences toggle flag
+├── SettingsActivity.kt                 <-- OneUI toggle preference UI
+└── AddURLViewModel.kt                  <-- Automated clipboard dispatch on Success state
+```
+
+---
 
 ### 7. 💾 Local History & Favorites Bookmarks
-* **Description**: Keeps an offline archive of all your shortened URLs for quick reference and tracking.
-* **How It Works**: Built using **Room Database** and reactive Kotlin Flows. Each record preserves the destination URL, short URL, QR code cache, creation timestamp, and visit count. Key links can be starred as favorites to filter and access them instantly.
+* **Description**: Completely offline archive ensuring all your past shortened links and stats remain instantly accessible.
+* **How It Works**: An in-app **Room SQLite Database** stores URL entities (`URLDb`), mapping them to clean domain models via `DomainMapper`. Built-in reactive Kotlin `Flow` streams deliver real-time database updates to the UI, enabling instant search, visit counting, and fast toggle of favorite bookmarks.
+
+```text
+Persistence_Archive/
+├── AppDatabase.kt                      <-- Room Database configuration & schema migrations
+├── URLDao.kt                           <-- Reactive CRUD queries (Insert, Delete, Observe)
+├── DomainMapper.kt                     <-- Clean Architecture converter (URLDb <-> URL)
+├── URLRepository.kt                    <-- Single Source of Truth wrapping Room calls
+└── MainViewModel.kt                    <-- Emits filtered Flow<List<URL>> (All / Favorites)
+```
 
 ---
 
