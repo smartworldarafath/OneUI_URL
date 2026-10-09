@@ -34,6 +34,68 @@
 
 ---
 
+## 📁 Project Architecture & Directory Structure
+
+```text
+OneUI_URL/
+├── app/                                 <-- Main Android Application Module
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/de/lemke/oneurl/
+│   │   │   │   ├── data/                <-- Data Layer: Room DB, DAO, Preferences & QR Exporters
+│   │   │   │   │   ├── database/        <-- AppDatabase, URLDao, Entities & Converters
+│   │   │   │   │   ├── QRCodeCache.kt   <-- In-Memory & Disk QR Code Caching Engine
+│   │   │   │   │   ├── QRCodeExporter.kt<-- Storage Access Framework & Share Exporter
+│   │   │   │   │   ├── URLRepository.kt <-- Room Repository managing URL Persistence
+│   │   │   │   │   └── UserSettings.kt  <-- User Settings & SharedPreferences wrapper
+│   │   │   │   ├── di/                  <-- Dependency Injection (Hilt Modules)
+│   │   │   │   │   ├── DispatchersModule.kt <-- Coroutine Dispatchers (@Default, @Io)
+│   │   │   │   │   ├── PersistenceModule.kt <-- Room DB & DAO bindings
+│   │   │   │   │   ├── ProviderModule.kt    <-- ShortURLProvider injection bindings
+│   │   │   │   │   └── SettingsModule.kt    <-- App Settings provider injection
+│   │   │   │   ├── domain/              <-- Domain Layer: Business Logic & Use Cases
+│   │   │   │   │   ├── generateURL/     <-- URL Generation, Safety & Volley Request Engine
+│   │   │   │   │   │   ├── GenerateURLUseCase.kt <-- Core URL Shortening Pipeline
+│   │   │   │   │   │   └── RequestQueueSingleton.kt <-- Volley Networking Queue
+│   │   │   │   │   ├── model/           <-- 20+ URL Provider Implementations (TinyURL, da.gd, etc.)
+│   │   │   │   │   ├── CheckURLSafetyUseCase.kt <-- URLhaus Threat Intelligence Scanner
+│   │   │   │   │   ├── GenerateQRCodeUseCase.kt <-- High-res QR Code Generator
+│   │   │   │   │   └── URLUseCases.kt   <-- Add, Delete, Observe, Update & Get URLs
+│   │   │   │   └── ui/                  <-- Presentation Layer: Activities, Adapters & ViewModels
+│   │   │   │       ├── MainActivity.kt  <-- Core Hub displaying Saved URLs & Favorites
+│   │   │   │       ├── AddURLActivity.kt<-- URL Creation & Provider Selection Interface
+│   │   │   │       ├── URLActivity.kt   <-- Detailed URL Inspection & Analytics View
+│   │   │   │       ├── GenerateQRCodeActivity.kt <-- Standalone QR Code Generation Tool
+│   │   │   │       ├── SettingsActivity.kt       <-- App Preferences & Configuration Screen
+│   │   │   │       └── QRCodeExport.kt  <-- Quick Share, Clipboard & Export Handlers
+│   │   │   └── res/                     <-- Android Resources: Layouts, Drawables, Strings, OneUI Themes
+│   │   └── test/                        <-- Architecture, Unit & Roborazzi Screenshot Tests
+│   └── build.gradle.kts                 <-- App-level build config, dependencies & baseline profiles
+│
+├── benchmarks/                          <-- Android Macrobenchmark & Baseline Profile Generator
+│   ├── src/main/java/.../benchmarks/    <-- Startup, Scroll & Metrics Automation Tests
+│   └── build.gradle.kts                 <-- Benchmark runner & target app configurations
+│
+├── config/                              <-- Code Quality & Analysis Rules
+│   ├── detekt/detekt.yml                <-- Detekt Static Code Analysis ruleset
+│   └── spotless/                        <-- License Header & ktlint formatting specs
+│
+├── gradle/                              <-- Gradle Wrapper & Version Catalogs
+│   ├── libs.versions.toml               <-- Centralized dependency & plugin version catalog
+│   └── wrapper/                         <-- Gradle wrapper binary and configuration
+│
+├── img/                                 <-- Project Media Assets
+│   └── OneURL_squircle.png              <-- High-Resolution App Icon
+│
+├── build.gradle.kts                     <-- Top-level Gradle root project build configuration
+├── settings.gradle.kts                  <-- Gradle project settings & repository resolution
+├── CLAUDE.md                            <-- Architecture, commands & build reference guide
+├── LICENSE                              <-- Apache 2.0 Open-Source License
+└── README.md                            <-- Comprehensive Master Documentation
+```
+
+---
+
 ## ✨ Features & Functionality
 
 Detailed breakdown of features and how each functions under the hood:
