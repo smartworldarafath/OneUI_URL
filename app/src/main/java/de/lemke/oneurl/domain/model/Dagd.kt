@@ -1,0 +1,206 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.domain.model
+
+import android.content.Context
+import android.util.Log
+import com.android.volley.NoConnectionError
+import com.android.volley.Request
+import com.android.volley.toolbox.StringRequest
+import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
+import de.lemke.commonutils.ui.utils.withHttps
+import de.lemke.oneurl.R
+import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+
+/*
+https://da.gd/help
+example: https://da.gd/shorten?url=http://some_long_url&shorturl=slug
+
+errors:
+400: Long URL cannot be empty                           //should not happen, checked before
+400: Long URL must have http:// or https:// scheme.     //should not happen, checked before
+400: Long URL is not a valid URL.
+400: Short URL already taken. Pick a different one.
+400: Custom short URL contained invalid characters.     //should not happen, checked before
+ */
+
+object Dagd : ShortURLProvider {
+    private const val MAX_ALIAS_LENGTH = 10
+
+    override val name = "da.gd"
+    override val baseURL = "https://da.gd"
+    override val apiURL = "$baseURL/shorten"
+    override val aliasConfig =
+        object : AliasConfig {
+            override val minAliasLength = 0
+            override val maxAliasLength = MAX_ALIAS_LENGTH
+            override val allowedAliasCharacters = "a-z, A-Z, 0-9, _"
+
+            override fun isAliasValid(alias: String) = alias.matches(Regex("[a-zA-Z0-9_]+"))
+        }
+
+    override fun getInfoContents(context: Context): List<ProviderInfo> =
+        listOf(
+            ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
+                context.getString(R.string.alias),
+                context.getString(
+                    R.string.alias_text,
+                    aliasConfig.minAliasLength,
+                    aliasConfig.maxAliasLength,
+                    aliasConfig.allowedAliasCharacters,
+                ),
+            ),
+            ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_report,
+                context.getString(R.string.analytics),
+                context.getString(R.string.analytics_dagd),
+            ),
+        )
+
+    override fun getAnalyticsURL(alias: String) = "$baseURL/stats/$alias"
+
+    override fun sanitizeLongURL(url: String) = url.withHttps().urlEncodeAmpersand().trim()
+
+    @Suppress("TooGenericExceptionCaught")
+    override fun getCreateRequest(
+        context: Context,
+        longURL: String,
+        alias: String,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ): StringRequest {
+        val tag = "CreateRequest_check_$name"
+        if (alias.isBlank()) return requestCreateDAGD(longURL, "", successCallback, errorCallback)
+        val checkUrlApi = "$baseURL/coshorten/$alias"
+        Log.d(tag, "start request: $checkUrlApi")
+        var innerReq: Request<*>? = null
+        return object : StringRequest(
+            Method.GET,
+            checkUrlApi,
+            { response ->
+                if (sanitizeLongURL(response) != longURL) {
+                    Log.e(
+                        tag,
+                        "error, shortURL already exists, but has different longURL, longURL: $longURL, response: ${
+                            sanitizeLongURL(response)
+                        } ($response)",
+                    )
+                    errorCallback(GenerateURLError.AliasAlreadyExists)
+                } else {
+                    Log.d(tag, "shortURL already exists (but is not in local db): $response")
+                    val shortURL = "$baseURL/$alias"
+                    Log.d(tag, "shortURL: $shortURL")
+                    successCallback(shortURL)
+                }
+            },
+            { error ->
+                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
+                // escaping exception here would crash the whole app.
+                try {
+                    Log.w(tag, "error: $error")
+                    val message = error.message
+                    val networkResponse = error.networkResponse
+                    val statusCode = networkResponse?.statusCode
+                    val data = networkResponse?.data?.toString(Charsets.UTF_8)
+                    Log.e(tag, "$statusCode: message: $message data: $data")
+                    when {
+                        error is NoConnectionError -> {
+                            errorCallback(GenerateURLError.ServiceOffline)
+                        }
+
+                        statusCode == null -> {
+                            errorCallback(GenerateURLError.Unknown())
+                        }
+
+                        else -> {
+                            if (statusCode == HttpStatusCode.NOT_FOUND) {
+                                Log.d(tag, "shortURL does not exist yet, creating it")
+                            } else {
+                                Log.w(tag, "error, trying to create it anyway")
+                            }
+                            innerReq = requestCreateDAGD(longURL, alias, successCallback, errorCallback)
+                            RequestQueueSingleton.getInstance(context).addToRequestQueue(innerReq)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "error parsing coshorten error response", e)
+                    errorCallback(GenerateURLError.Unknown())
+                }
+            },
+        ) {
+            override fun cancel() {
+                super.cancel()
+                innerReq?.cancel()
+            }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun requestCreateDAGD(
+        longURL: String,
+        alias: String,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ): StringRequest {
+        val tag = "CreateRequest_create_$name"
+        val url = apiURL + "?url=" + longURL + if (alias.isBlank()) "" else "&shorturl=$alias"
+        Log.d(tag, "start request: $url")
+        return StringRequest(
+            Request.Method.GET,
+            url,
+            { response ->
+                Log.d(tag, "response: $response")
+                if (response.startsWith("https://da.gd")) {
+                    val shortURL = response.trim()
+                    Log.d(tag, "shortURL: $shortURL")
+                    successCallback(shortURL)
+                } else {
+                    Log.e(tag, "error, response does not start with https://da.gd, response: $response")
+                    errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                }
+            },
+            { error ->
+                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
+                // escaping exception here would crash the whole app.
+                try {
+                    Log.e(tag, "error: $error")
+                    val networkResponse = error.networkResponse
+                    val statusCode = networkResponse?.statusCode
+                    val data = networkResponse?.data?.toString(Charsets.UTF_8)
+                    Log.e(tag, "$statusCode: message: ${error.message} data: $data")
+                    when {
+                        error is NoConnectionError -> errorCallback(GenerateURLError.ServiceOffline)
+                        statusCode == null -> errorCallback(GenerateURLError.Unknown())
+                        data.isNullOrBlank() -> errorCallback(GenerateURLError.Unknown(statusCode))
+                        data.contains("Long URL cannot be empty", true) -> errorCallback(GenerateURLError.InvalidURL)
+                        data.contains("Long URL must have http:// or https://", true) -> errorCallback(GenerateURLError.InvalidURL)
+                        data.contains("Long URL is not a valid URL", true) -> errorCallback(GenerateURLError.InvalidURL)
+                        data.contains("Short URL already taken", true) -> errorCallback(GenerateURLError.AliasAlreadyExists)
+                        data.contains("Custom short URL contained invalid", true) -> errorCallback(GenerateURLError.InvalidAlias)
+                        else -> errorCallback(GenerateURLError.Custom(statusCode, data))
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "error parsing create error response", e)
+                    errorCallback(GenerateURLError.Unknown())
+                }
+            },
+        )
+    }
+}

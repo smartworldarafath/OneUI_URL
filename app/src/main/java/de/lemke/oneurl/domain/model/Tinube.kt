@@ -1,0 +1,191 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.domain.model
+
+import android.content.Context
+import android.util.Log
+import com.android.volley.NoConnectionError
+import com.android.volley.Request
+import com.android.volley.toolbox.StringRequest
+import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
+import de.lemke.commonutils.ui.utils.withHttps
+import de.lemke.oneurl.R
+import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import org.json.JSONException
+import org.json.JSONObject
+
+/*
+https://tinu.be/en
+header:
+next-action: 1f5652ca890cba09fa370c02bd5123721da16fec
+body: [{"longUrl":"https://example.com","urlCode":""}]
+
+response:
+0:["$@1",["RVMyonj2KmbCvJpjXHG0y",null]]
+1:{"status":200,"data":{"urlCode":"Nx1ByyelU","longUrl":"https://example.com"}}
+
+error:
+0:["$@1",["RVMyonj2KmbCvJpjXHG0y",null]]
+1:{"status":208,"data":"The suffix is already in use"}
+
+stats:
+https://api.tinu.be/Nx1ByyelU/stats
+{
+  "clicks": 0,
+  "longUrl": "https://example.com",
+  "shortUrl": "https://tinu.be/Nx1ByyelU",
+  "urlCode": "Nx1ByyelU"
+}
+ */
+object Tinube : ShortURLProvider {
+    private const val MAX_ALIAS_LENGTH = 100 // no info, tested up to 100
+
+    override val name = "tinu.be"
+    override val baseURL = "https://tinu.be"
+    override val apiURL = "$baseURL/en"
+    override val privacyURL = "$baseURL/terms"
+    override val termsURL = "$baseURL/terms"
+    override val aliasConfig =
+        object : AliasConfig {
+            override val minAliasLength = 0
+            override val maxAliasLength = MAX_ALIAS_LENGTH
+            override val allowedAliasCharacters = "a-z, A-Z, 0-9, -, _"
+
+            override fun isAliasValid(alias: String) = alias.matches(Regex("[a-zA-Z0-9_-]+"))
+        }
+
+    override fun getInfoContents(context: Context): List<ProviderInfo> =
+        listOf(
+            ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
+                context.getString(R.string.alias),
+                context.getString(
+                    R.string.alias_text,
+                    aliasConfig.minAliasLength,
+                    aliasConfig.maxAliasLength,
+                    aliasConfig.allowedAliasCharacters,
+                ),
+            ),
+            ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_report,
+                context.getString(R.string.analytics),
+                context.getString(R.string.analytics_text),
+            ),
+        )
+
+    override fun sanitizeLongURL(url: String) = url.withHttps().urlEncodeAmpersand().trim()
+
+    override fun getURLClickCount(
+        context: Context,
+        url: URL,
+        callback: (clicks: Int?) -> Unit,
+    ) {
+        val tag = "GetURLVisitCount_$name"
+        val requestURL = "https://api.tinu.be/${url.alias}/stats"
+        Log.d(tag, "start request: $url")
+        RequestQueueSingleton.getInstance(context).addToRequestQueue(
+            StringRequest(
+                Request.Method.GET,
+                requestURL,
+                { response ->
+                    try {
+                        Log.d(tag, "response: $response")
+                        val clicks = JSONObject(response).getInt("clicks")
+                        Log.d(tag, "clicks: $clicks")
+                        callback(clicks)
+                    } catch (e: JSONException) {
+                        Log.e(tag, "error parsing click count response", e)
+                        callback(null)
+                    }
+                },
+                { error ->
+                    Log.e(tag, "error: $error")
+                    callback(null)
+                },
+            ),
+        )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    override fun getCreateRequest(
+        context: Context,
+        longURL: String,
+        alias: String,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ): StringRequest {
+        val tag = "CreateRequest_$name"
+        Log.d(tag, "start request: $apiURL [{longUrl: $longURL, urlCode: $alias}]")
+        return object : StringRequest(
+            Method.POST,
+            apiURL,
+            { response ->
+                Log.d(tag, "response: $response")
+                val data = response.split("1:").getOrNull(1)
+                val status =
+                    data
+                        ?.split(",")
+                        ?.getOrNull(0)
+                        ?.split(":")
+                        ?.getOrNull(1)
+                        ?.toIntOrNull()
+                val urlCode =
+                    if (status == HttpStatusCode.OK) {
+                        data
+                            .split("urlCode\":\"")
+                            .getOrNull(1)
+                            ?.split("\"")
+                            ?.getOrNull(0)
+                    } else {
+                        null
+                    }
+                Log.d(tag, "status: $status, urlCode: $urlCode")
+                when {
+                    status == HttpStatusCode.OK && urlCode != null -> successCallback("$baseURL/$urlCode")
+                    status == HttpStatusCode.ALREADY_REPORTED -> errorCallback(GenerateURLError.AliasAlreadyExists)
+                    status != null -> errorCallback(GenerateURLError.Unknown(status))
+                    else -> errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                }
+            },
+            { error ->
+                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
+                // escaping exception here would crash the whole app.
+                try {
+                    Log.e(tag, "error: $error")
+                    val networkResponse = error.networkResponse
+                    val statusCode = networkResponse?.statusCode
+                    val data = networkResponse?.data?.toString(Charsets.UTF_8)
+                    Log.e(tag, "$statusCode: message: ${error.message} data: $data")
+                    when {
+                        error is NoConnectionError -> errorCallback(GenerateURLError.ServiceOffline)
+                        statusCode == null -> errorCallback(GenerateURLError.Unknown())
+                        else -> errorCallback(GenerateURLError.Unknown(statusCode))
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "error parsing error response", e)
+                    errorCallback(GenerateURLError.Unknown())
+                }
+            },
+        ) {
+            override fun getHeaders() = mapOf("next-action" to "74b2f223fe2b6e65737e07eeabae72c67abf76b2")
+
+            override fun getBody() = "[{\"longUrl\":\"$longURL\",\"urlCode\":\"$alias\"}]".toByteArray(Charsets.UTF_8)
+        }
+    }
+}

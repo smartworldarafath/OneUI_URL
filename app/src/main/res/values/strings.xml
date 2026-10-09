@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright 2023-2026 Leonard Lemke
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
+    <string name="app_description">A URL-Shortener and QR code generator with OneUI-Design.</string>
+    <string name="about_app">About OneURL</string>
+    <string name="memory_leaks" translatable="false">Memory leaks</string>
+
+    <!--Override commonutils strings-->
+    <string name="commonutils_app_description" translatable="false">@string/app_description</string>
+    <string name="commonutils_email" translatable="false">oneurl@leonard-lemke.com</string>
+    <string name="commonutils_privacy_website" translatable="false">https://www.leonard-lemke.com/apps/oneurl/privacy-policy</string>
+    <string name="commonutils_tos_content">The use of OneURL for URL shortening is subject to the terms of use and privacy policy of the respective services provided by third parties. \n\nIt is not permitted to use this app contrary to morality or the laws in force. \n\nYou also agree that you will not use this app for any purposes prohibited by United States law, including, without limitation, the development, design, manufacture, or production of missile, chemical or biological weapons. \nHowever, this restriction will not apply in the event of the occurrence (certified by the United States Centers for Disease Control or successor body) of a widespread viral infection transmitted via bites or contact with bodily fluids that causes human corpses to reanimate and seek to consume living human flesh, blood, brain or nerve tissue and is likely to result in the fall of organized civilization. \n\nA special consideration, which may include monetary compensation, will be provided to a limited number of users who read this section of the Terms and Services and contact me at writing-an-email-to-this-address-will-cost-you-10-euro@leonard-lemke.com. This offer may be withdrawn at any time without any notice. \n\nAdditional questions will be answered at this-email-is-way-too-long-and-hopefully-you-cannot-copy-paste@leonard-lemke.com. \n\nRegarding the contact features provided in various places within this app, which generate a topic-specific, prewritten email when activated, the following applies: These templates are intended solely as a starting point for your personalized message. Sending one of these templates unchanged, or a blank email, constitutes misuse of the feature and is not permitted. By doing so anyway, you legally agree to be classified as a person demonstrably incapable of properly operating basic functions of their smartphone and its email application functions. Such a classification renders further communication obsolete and releases the recipient from any obligation to respond.</string>
+
+    <!--Help-->
+    <string name="help_text">OneURL respects your privacy and does not store any personal information. For more information, please refer to our Privacy Policy. \nThe use of OneURL to shorten URLs is subject to the terms of use of the respective services provided by third-party providers. Please consult the terms and conditions of each service provider to learn more about their policies and restrictions.\n\nCosts and Rate Limits:\nThe providers available in the app are free of charge. Some providers therefore have rate limits. Exceeding the rate limit can lead to temporary or permanent blocking of your IP address with a provider. Please note that this blocking is managed by the service providers themselves.\nNormally, these limits should not be reached as a normal user. We recommend to respect the rate limits of the service providers and not to exceed them intentionally to ensure a seamless usage.</string>
+
+    <!--Provider info-->
+    <string name="provider_info">Provider info</string>
+    <string name="provider_info_for">Provider info for %1$s</string>
+    <string name="provider_info_for_features">Provider info for %1$s: %2$s</string>
+    <string name="select_provider">Select provider</string>
+    <string name="group">Group</string>
+    <string name="redirect_hint">Hint before redirecting</string>
+    <string name="redirect_hint_text">Before redirecting, this provider displays a hint that informs the user about the destination URL.</string>
+    <string name="privacy_text">This provider has been designed to be as data efficient as possible. It is operated from Germany and complies with the applicable privacy regulations in Germany and Europe.</string>
+    <string name="emoji">Emoji</string>
+    <string name="emoji_text">This URL shortener uses emojis to create personalized and easy-to-remember links. When specifying an alias, only emojis are allowed.</string>
+    <string name="alias_text">The individual aliases can only use the characters \"%3$s\" and must be %1$d–%2$d in length. This feature lets users create personalized, easy-to-remember aliases for their links.</string>
+    <string name="analytics">Analytics</string>
+    <string name="analytics_text">This provider offers the possibility to use analytics to get insights into the performance of the shortened links.</string>
+    <string name="analytics_dagd">The provider da.gd offers the possibility to use analytics to get insights into the performance of the shortened links. With da.gd, the links must have been accessed at least once within the last 60 days, otherwise an error will be displayed (404).</string>
+    <string name="owovc_fun_text">In addition to the normal URL shortener, owo.vc also offers other URL shorteners. These are intended for entertainment purposes and should be used respectfully, responsibly and with caution.</string>
+    <string name="owovc_zws">The URL shortener \"owo.vc (zws)\" uses Zero-Width Spaces in the generated links. These spaces are invisible, which is why all links appear the same (\"owo.vc/\"). When copying and pasting in certain apps, these spaces may be removed. In such cases, the standard owo.vc page will open instead of the intended destination URL. Therefore, use this service with caution.</string>
+    <string name="owovc_sketchy">The URL shortener \"owo.vc (sketchy)\" generates suspicious-looking URLs containing keywords like \"bank-login\", \"password\", \"hidden\", \"grab\" or \"account\" along with popular website names.</string>
+    <string name="owovc_gay">The URL shortener \"owo.vc (gay)\" employs offensive and sexist language and may represent inappropriate or offensive content. Be aware that the generated links may contain sexist terms and could be considered offensive and disrespectful by others. Use this service with respect and responsibility.</string>
+    <string name="zwsim_zws">The URL shortener \"zws.im\" uses Zero-Width Spaces in the generated links. These spaces are invisible, which is why all links appear the same (\"zws.im/\"). When copying and pasting in certain apps, these spaces may be removed. In such cases, the standard zws.im page will open instead of the intended destination URL. Therefore, use this service with caution.</string>
+    <string name="tly_info">This URL shortener utilizes multiple domains for the same service, meaning it may generate short URLs with different domain names (e.g., tinyurl.com). Therefore, use this service with caution.</string>
+    <string name="shorturlat_info">The URL shortener shorturl.at does not offer an API and is therefore not as reliable as other providers in this app. In addition, links with less than one click per month are deactivated. Therefore, use this service with caution.</string>
+
+    <!--Settings-->
+    <string name="auto_copy_on_create">Automatic copying</string>
+    <string name="auto_copy_on_create_summary">Automatically copy the shortened URL to the clipboard</string>
+
+    <!--Add URL-->
+    <string name="add_url">Add url</string>
+    <string name="provider">Provider</string>
+    <string name="alias">Custom alias</string>
+    <string name="alias_optional">Custom alias (Optional)</string>
+    <string name="alias_hint">e.g.: xyz123</string>
+    <string name="description">Description (Optional)</string>
+    <string name="description_hint">e.g.: My website</string>
+    <string name="to_url">To URL</string>
+    <string name="url_added">URL added</string>
+    <string name="checking_duplicates">Checking for duplicates…</string>
+    <string name="fetching_title">Fetching page title…</string>
+    <string name="checking_internet">Checking internet connection…</string>
+    <string name="checking_url">Checking the URL for blacklisting, malware, phishing, spam or abuse…</string>
+    <string name="generating_url">Generating URL…</string>
+
+    <!--URL-->
+    <string name="url">URL</string>
+    <string name="description_">"Description: "</string>
+    <string name="title_">"Title: "</string>
+    <string name="created_">"Created: "</string>
+    <string name="visits_">"Visits: "</string>
+    <string name="shorten_url">Shorten URL (OneURL)</string>
+    <string name="copy_shortened_url">Copy shortened URL</string>
+    <string name="copy_to_clipboard_hint">Long press URLs or QR codes to copy them to the clipboard.</string>
+    <string name="no_urls">No URLs</string>
+    <string name="no_favorite_urls">No favorite URLs</string>
+
+    <!--Error-->
+    <string name="no_internet">No internet connection available…</string>
+    <string name="no_internet_text">Please check your internet connection and try again.</string>
+    <string name="error_url_not_found">URL not found</string>
+    <string name="error_empty_url">Empty URL.</string>
+    <string name="error_url_already_exists">URL already shortened</string>
+    <string name="error_url_already_exists_with_different_alias">This URL has already been shortened with a different alias. Please try shortening a different URL or leave the alias unspecified.</string>
+    <string name="error_alias_already_exists">Alias already exists. Try another one or leave it empty to generate a random one.</string>
+    <plurals name="error_alias_too_short">
+        <item quantity="one">Alias too short (min. %1$d character).</item>
+        <item quantity="other">Alias too short (min. %1$d characters).</item>
+    </plurals>
+    <string name="error_alias_too_long">Alias exceeds the %1$d-character limit.</string>
+    <string name="error_invalid_url">Invalid URL.</string>
+    <string name="error_invalid_alias">Invalid alias.</string>
+    <string name="error_invalid_alias_allowed_characters">Invalid alias (allowed characters: %1$s).</string>
+    <string name="error_invalid_url_or_alias">Invalid URL or alias.</string>
+    <string name="error_blacklisted_url">This URL is blacklisted. It may have been used abusively in the past, or it may link to another URL redirection service. If you continue trying to shorten blacklisted URLs, you may be blocked from using this service.</string>
+    <string name="error_rate_limit_exceeded">Rate limit exceeded. Please wait at least 5 minutes before making the next request. Otherwise, you may be blocked from using this service.</string>
+    <string name="error_service_unavailable">Service unavailable</string>
+    <string name="error_service_unavailable_text">Service currently unavailable. Please try again later.</string>
+    <string name="error_domain_not_allowed">Domain not allowed.</string>
+    <string name="error_internal_server_error">Internal server error.</string>
+    <string name="error_service_offline">The service of this provider is offline. Please use another provider.</string>
+    <string name="error_with_http_status">Error (HTTP %1$d)</string>
+    <string name="error_with_code">Error (code %1$d)</string>
+    <string name="error_request_rejected">The provider rejected the request.</string>
+    <string name="error_access_refused">The provider refused access.</string>
+    <string name="error_provider_cannot_handle_requests">This provider can\'t handle requests right now. It may be down or discontinued.</string>
+    <string name="error_try_another_provider">If this keeps happening, try another provider.</string>
+
+    <string name="error_urlhaus_blacklisted">This URL is blacklisted on: %1$s.\n%2$s\nIf you continue trying to shorten blacklisted URLs, you may be blocked from using this App.</string>
+    <string name="error_urlhaus_default">It may have been used abusively in the past, or it may link to another URL redirection service.</string>
+    <string name="error_urlhaus_spammer_domain">It is a known spammer domain.</string>
+    <string name="error_urlhaus_phishing_domain">It is a known phishing domain.</string>
+    <string name="error_urlhaus_botnet_cc_domain">It is a known botnet C&amp;C domain.</string>
+    <string name="error_urlhaus_abused_legit_spam">It is a known compromised website used for spammer hosting.</string>
+    <string name="error_urlhaus_abused_legit_malware">It is a known compromised website used for malware distribution.</string>
+    <string name="error_urlhaus_abused_legit_phishing">It is a known compromised website used for phishing hosting.</string>
+    <string name="error_urlhaus_abused_legit_botnetcc">It is a known compromised website used for botnet C&amp;C hosting.</string>
+    <string name="error_urlhaus_abused_redirector">It is a known abused redirector or URL shortener.</string>
+
+    <!--Others-->
+    <string name="generate_qr_code">Generate QR code</string>
+    <string name="scan_qr">Scan this QR code on another device to view the url.</string>
+    <string name="delete_url_message">Do you really want to delete this URL?</string>
+    <string name="content_description_qr_code">QR code</string>
+    <string name="url_safety_google_safe_browsing" translatable="false">Google Safe Browsing</string>
+    <string name="url_safety_norton_safe_web" translatable="false">Norton Safe Web</string>
+    <string name="url_safety_link_shield" translatable="false">Link Shield</string>
+    <string name="url_safety_malshare" translatable="false">MalShare</string>
+    <string name="url_safety_urlhaus" translatable="false">URLhaus</string>
+    <string name="url_safety_virustotal" translatable="false">VirusTotal</string>
+    <string name="url_safety_kaspersky" translatable="false">Kaspersky</string>
+
+</resources>

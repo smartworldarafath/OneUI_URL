@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright 2023-2026 Leonard Lemke
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/commonutils_data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
+        android:fullBackupContent="@xml/commonutils_backup_rules"
+        android:icon="@drawable/ic_launcher"
+        android:label="${APP_NAME}"
+        android:localeConfig="@xml/commonutils_locale_config"
+        android:resizeableActivity="true"
+        android:supportsRtl="true"
+        android:theme="@style/CommonUtils.AppTheme"
+        tools:targetApi="36">
+        <meta-data
+            android:name="theming-meta"
+            android:value="meta_oneurl" />
+        <meta-data
+            android:name="theming-meta-xml"
+            android:value="@xml/meta_oneurl" />
+
+        <activity android:name=".ui.HelpActivity" />
+        <activity
+            android:name=".ui.GenerateQRCodeActivity"
+            android:configChanges="screenLayout|screenSize" />
+        <activity
+            android:name=".ui.ProviderActivity"
+            android:configChanges="orientation|screenLayout|screenSize" />
+        <activity
+            android:name=".ui.AddURLActivity"
+            android:configChanges="orientation|screenLayout|screenSize" />
+        <activity
+            android:name=".ui.URLActivity"
+            android:configChanges="orientation|screenLayout|screenSize" />
+        <activity
+            android:name=".ui.MainActivity"
+            android:configChanges="orientation|screenLayout|screenSize"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/CommonUtils.AppTheme.Starting">
+            <meta-data
+                android:name="com.sec.android.app.launcher.icon_theme"
+                android:value="themeColor" />
+            <meta-data
+                android:name="android.app.searchable"
+                android:resource="@xml/commonutils_searchable" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.SEARCH" />
+            </intent-filter>
+            <intent-filter android:label="@string/shorten_url">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter android:label="@string/shorten_url">
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

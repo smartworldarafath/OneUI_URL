@@ -1,0 +1,77 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "907f55ca309aab6f89e45a2c51f7be18",
+    "entities": [
+      {
+        "tableName": "url",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`shortURL` TEXT NOT NULL, `longURL` TEXT NOT NULL, `shortURLProvider` TEXT NOT NULL, `qr` BLOB NOT NULL, `favorite` INTEGER NOT NULL, `title` TEXT NOT NULL DEFAULT '', `description` TEXT NOT NULL, `added` TEXT NOT NULL, PRIMARY KEY(`shortURL`))",
+        "fields": [
+          {
+            "fieldPath": "shortURL",
+            "columnName": "shortURL",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longURL",
+            "columnName": "longURL",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "shortURLProvider",
+            "columnName": "shortURLProvider",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qr",
+            "columnName": "qr",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "favorite",
+            "columnName": "favorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "added",
+            "columnName": "added",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "shortURL"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '907f55ca309aab6f89e45a2c51f7be18')"
+    ]
+  }
+}

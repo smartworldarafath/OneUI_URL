@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright 2023-2026 Leonard Lemke
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<resources>
+    <string name="app_description">Ein URL-Verkürzer und QR-Code Generator mit OneUI-Design.</string>
+    <string name="about_app">Über OneURL</string>
+
+    <!--Override commonutils strings-->
+    <string name="commonutils_tos_content">Die Verwendung von OneURL zum Verkürzen von URLs unterliegt den Nutzungsbedingungen und Datenschutzrichtlinien der jeweiligen Dienste, die von Drittanbietern bereitgestellt werden.\n\nEs ist nicht gestattet, diese App entgegen den guten Sitten oder den geltenden Gesetzen zu verwenden. \n\nSie verpflichten sich außerdem, diese App nicht für Zwecke zu verwenden, die nach dem Recht der Vereinigten Staaten verboten sind, insbesondere nicht für die Entwicklung, Konstruktion, Herstellung oder Produktion von Raketen, chemischen oder biologischen Waffen. \nDiese Einschränkung gilt jedoch nicht für den Fall, dass eine weit verbreitete Virusinfektion auftritt (die von den United States Centers for Disease Control oder einer Nachfolgeorganisation bestätigt wurde), die durch Bisse oder Kontakt mit Körperflüssigkeiten übertragen wird und dazu führt, dass menschliche Leichen wiederbelebt werden und versuchen, lebendes menschliches Fleisch, Blut, Gehirn oder Nervengewebe zu verzehren, und die wahrscheinlich zum Untergang der organisierten Zivilisation führen wird. \n\nEine besondere Gegenleistung, die eine finanzielle Entschädigung beinhalten kann, wird einer begrenzten Anzahl von Nutzern angeboten, die diesen Abschnitt der Nutzungsbedingungen lesen und mich unter eine-email-an-diese-adresse-zu-schreiben-wird-sie-10-euro-kosten@leonard-lemke.com kontaktieren. Dieses Angebot kann jederzeit und ohne Vorankündigung zurückgezogen werden. \n\nWeitere Fragen werden unter diese-email-ist-viel-zu-lang-und-hoffentlich-koennen-sie-nicht-kopieren-und-einfuegen@leonard-lemke.com beantwortet. \n\nHinsichtlich der in dieser App an mehreren Stellen zur Verfügung gestellten Kontaktfunktionen, welche bei Betätigung eine E-Mail mit einem themenspezifischen, vorformulierten Text generieren, wird Folgendes festgelegt: Diese Textvorlagen dienen ausschließlich als Ausgangspunkt für Ihre individuelle Anfrage. Das Absenden einer dieser unveränderten Vorlagen oder einer inhaltsleeren E-Mail stellt eine missbräuchliche Nutzung der Funktion dar und ist nicht gestattet. Sollten Sie entgegen dieser Bestimmung eine solche Nachricht versenden, erklären Sie sich damit rechtsverbindlich einverstanden, als eine Person eingestuft zu werden, die nachweislich nicht in der Lage ist, grundlegende Funktionen ihres Smartphones und dessen E-Mail-Applikationen sachgemäß zu verwenden. Eine solche Einstufung macht eine weiterführende Kommunikation naturgemäß obsolet und entbindet den Empfänger von jeglicher Antwortpflicht.</string>
+
+    <!--Help-->
+    <string name="help_text">OneURL respektiert Ihre Privatsphäre und speichert keine persönlichen Informationen. Weitere Informationen finden Sie in unserer Datenschutzrichtlinie. \nDie Verwendung von OneURL zum Verkürzen von URLs unterliegt den Nutzungsbedingungen der jeweiligen Dienste, die von Drittanbietern bereitgestellt werden. Bitte konsultieren Sie die Geschäftsbedingungen der jeweiligen Dienstanbieter, um mehr über deren Richtlinien und Einschränkungen zu erfahren.\n\nKosten und Rate Limits:\nDie in der App verfügbaren Anbieter sind kostenlos. Bei einigen Anbietern gibt es daher sogenannte Rate Limits. Das Überschreiten des Rate-Limits kann zur vorübergehenden oder dauerhaften Sperrung Ihrer IP-Adresse bei einem Anbieter führen. Bitte beachten Sie, dass diese Sperrung von den Dienstanbietern selbst verwaltet wird.\nIm Normalfall sollten diese Limits als normaler Nutzer nicht erreicht werden. Wir empfehlen, die Rate Limits der Dienstanbieter zu respektieren und sie nicht absichtlich zu überschreiten, um eine reibungslose Nutzung sicherzustellen.</string>
+
+    <!--Provider info-->
+    <string name="provider_info">Anbieter-Info</string>
+    <string name="provider_info_for">Anbieter-Info zu %1$s</string>
+    <string name="provider_info_for_features">Anbieter-Info zu %1$s: %2$s</string>
+    <string name="select_provider">Anbieter auswählen</string>
+    <string name="group">Gruppe</string>
+    <string name="redirect_hint">Hinweis vor Weiterleitung</string>
+    <string name="redirect_hint_text">Vor der Weiterleitung zeigt dieser Anbieter einen Hinweis an, der den Benutzer über die Ziel-URL informiert.</string>
+    <string name="privacy_text">Dieser Anbieter wurde so konzipiert, dass er so datensparsam arbeitet, wie möglich. Er wird von Deutschland aus betrieben und hält sich an die geltenden Datenschutzregelungen in Deutschland und Europa.</string>
+    <string name="emoji">Emoji</string>
+    <string name="emoji_text">Dieser URL-Verkürzer verwendet Emojis, um personalisierte und leicht zu merkende Links zu erstellen. Falls ein eigenes Kürzel angegeben wird, sind nur Emojis erlaubt.</string>
+    <string name="alias_text">Die individuellen Kürzel dürfen ausschließlich aus den Zeichen \"%3$s\" bestehen und müssen zwischen %1$d und %2$d Zeichen lang sein. Diese Funktion ermöglicht den Nutzern, personalisierte und leicht zu merkende Kürzel für ihre Links zu erstellen.</string>
+    <string name="analytics">Analytics</string>
+    <string name="analytics_text">Dieser Anbieter bietet die Möglichkeit, Analytics zu nutzen, um Einblicke in die Leistung der verkürzten Links zu erhalten.</string>
+    <string name="analytics_dagd">Der Anbieter da.gd bietet die Möglichkeit, Analytics zu nutzen, um Einblicke in die Leistung der verkürzten Links zu erhalten. Bei da.gd müssen die Links innerhalb der letzten 60 Tage mindestens einmal aufgerufen worden sein, ansonsten wird ein Fehler angezeigt (404).</string>
+    <string name="owovc_fun_text">Neben dem normalen URL-Verkürzer bietet owo.vc auch weitere URL-Verkürzer an. Diese sind für Unterhaltungszwecke gedacht und sollten respektvoll, verantwortungsbewusst und mit Vorsicht verwendet werden.</string>
+    <string name="owovc_zws">Der URL-Verkürzer \"owo.vc (zws)\" verwendet Zero-Width Spaces (Breitenlose Leerzeichen) in den erstellten Links. Da diese Leerzeichen unsichtbar sind, sehen alle Links gleich aus (\"owo.vc/\"). Beim Kopieren und Einfügen in bestimmten Apps kann es vorkommen, dass diese Leerzeichen entfernt werden. In solchen Fällen öffnet sich die Standardseite von owo.vc anstelle der beabsichtigten Ziel-URL. Nutze diesen Dienst daher mit Vorsicht.</string>
+    <string name="owovc_sketchy">Der URL-Verkürzer \"owo.vc (sketchy)\" generiert verdächtig aussehende URLs, die Schlüsselwörter wie \"bank-login\", \"password\", \"hidden\", \"grab\" oder \"account\" zusammen mit populären Website-Namen enthalten.</string>
+    <string name="owovc_gay">Der URL-Verkürzer \"owo.vc (gay)\" verwendet anstößige und sexistische Wörter und kann für unangemessene oder beleidigende Inhalte stehen. Sei dir bewusst, dass die erstellten Links möglicherweise sexis tische Begriffe enthalten und von anderen als beleidigend und respektlos empfunden werden könnten. Sei respektvoll und verantwortungsbewusst bei der Verwendung dieses Dienstes.</string>
+    <string name="zwsim_zws">Der URL-Verkürzer \"zws.im (zws)\" verwendet Zero-Width Spaces (Breitenlose Leerzeichen) in den erstellten Links. Da diese Leerzeichen unsichtbar sind, sehen alle Links gleich aus (\"zws.im/\"). Beim Kopieren und Einfügen in bestimmten Apps kann es vorkommen, dass diese Leerzeichen entfernt werden. In solchen Fällen öffnet sich die Standardseite von zws.im anstelle der beabsichtigten Ziel-URL. Nutze diesen Dienst daher mit Vorsicht.</string>
+    <string name="tly_info">Dieser URL-Shortener verwendet mehrere Domains für denselben Dienst, was bedeutet, dass er Kurz-URLs mit unterschiedlichen Domainnamen (z.B. tinyurl.com) erstellen kann. Nutze diesen Dienst daher mit Vorsicht.</string>
+    <string name="shorturlat_info">Der URL-Verkürzer shorturl.at bietet keine Schnittstelle und ist daher nicht so zuverlässig wie andere Anbieter in dieser App. Darüber hinaus werden Links mit weniger als einem Klick pro Monat deaktiviert. Nutze diesen Dienst daher mit Vorsicht.</string>
+
+    <!--Settings-->
+    <string name="auto_copy_on_create">Automatisch kopieren</string>
+    <string name="auto_copy_on_create_summary">Automatisch die verkürzte URL in die Zwischenablage kopieren</string>
+
+    <!--Add URL-->
+    <string name="add_url">URL hinzufügen</string>
+    <string name="provider">Anbieter</string>
+    <string name="alias">Benutzerdefiniertes Kürzel</string>
+    <string name="alias_optional">Benutzerdefiniertes Kürzel (Optional)</string>
+    <string name="alias_hint">z.B.: xyz123</string>
+    <string name="description">Beschreibung (Optional)</string>
+    <string name="description_hint">z.B.: Meine Webseite</string>
+    <string name="to_url">Zur URL</string>
+    <string name="url_added">URL hinzugefügt</string>
+    <string name="checking_duplicates">Überprüfe auf Duplikate…</string>
+    <string name="fetching_title">Rufe Seitentitel ab…</string>
+    <string name="checking_internet">Überprüfe Internetverbindung…</string>
+    <string name="checking_url">Überprüfung der URL auf Blacklisting, Malware, Phishing, Spam oder Missbrauch…</string>
+    <string name="generating_url">Generiere URL…</string>
+
+    <!--URL-->
+    <string name="url">URL</string>
+    <string name="description_">"Beschreibung: "</string>
+    <string name="title_">"Titel: "</string>
+    <string name="created_">"Erstellt: "</string>
+    <string name="visits_">"Klicks: "</string>
+    <string name="shorten_url">URL verkürzen (OneURL)</string>
+    <string name="copy_shortened_url">Verkürzte URL kopieren</string>
+    <string name="copy_to_clipboard_hint">Lange drücken, um URLs oder QR-Codes in die Zwischenablage zu kopieren.</string>
+    <string name="no_urls">Keine URLs</string>
+    <string name="no_favorite_urls">Keine Favoriten</string>
+
+    <!--Error-->
+    <string name="no_internet">Keine Internetverbindung verfügbar…</string>
+    <string name="no_internet_text">Bitte überprüfe deine Internetverbindung und versuche es erneut.</string>
+    <string name="error_url_not_found">URL nicht gefunden</string>
+    <string name="error_empty_url">Keine URL eingegeben.</string>
+    <string name="error_url_already_exists">URL bereits gekürzt</string>
+    <string name="error_url_already_exists_with_different_alias">Diese URL wurde bereits mit einem anderen Kürzel verkürzt. Versuche, eine andere URL zu verkürzen oder kein Kürzel anzugeben.</string>
+    <string name="error_alias_already_exists">Kürzel existiert bereits. Bitte wähle ein anderes Kürzel oder lasse das Feld leer, um ein zufälliges Kürzel zu generieren.</string>
+    <plurals name="error_alias_too_short">
+        <item quantity="one">Kürzel zu kurz (min. %1$d Zeichen).</item>
+        <item quantity="other">Kürzel zu kurz (min. %1$d Zeichen).</item>
+    </plurals>
+    <string name="error_alias_too_long">Kürzel überschreitet die maximale Länge von %1$d Zeichen.</string>
+    <string name="error_invalid_url">Ungültige URL.</string>
+    <string name="error_invalid_alias">Ungültiges Kürzel.</string>
+    <string name="error_invalid_alias_allowed_characters">Ungültiges Kürzel (erlaubte Zeichen: %1$s).</string>
+    <string name="error_invalid_url_or_alias">Ungültige URL oder Kürzel.</string>
+    <string name="error_blacklisted_url">Diese URL ist auf der Blacklist. Sie wurde möglicherweise in der Vergangenheit missbräuchlich verwendet oder verweist auf einen anderen URL-Verkürzungsdienst. Wenn du weiterhin versuchst, URLs aus der Blacklist zu verkürzen, könntest du von der Nutzung dieses Dienstes ausgeschlossen werden.</string>
+    <string name="error_rate_limit_exceeded">Du hast zu viele Anfragen gestellt. Bitte warte mindestens 5 Minuten, bevor du eine weitere Anfrage stellst. Andernfalls könntest du für die Nutzung dieses Dienstes gesperrt werden.</string>
+    <string name="error_service_unavailable">Dienst nicht verfügbar.</string>
+    <string name="error_service_unavailable_text">Dienst aktuell nicht verfügbar. Bitte versuche es später erneut.</string>
+    <string name="error_domain_not_allowed">Diese Domain ist nicht erlaubt.</string>
+    <string name="error_internal_server_error">Interner Serverfehler.</string>
+    <string name="error_service_offline">Der Dienst dieses Anbieters ist offline. Bitte wähle einen anderen Anbieter.</string>
+    <string name="error_with_http_status">Fehler (HTTP %1$d)</string>
+    <string name="error_with_code">Fehler (Code %1$d)</string>
+    <string name="error_request_rejected">Der Anbieter hat die Anfrage abgelehnt.</string>
+    <string name="error_access_refused">Der Anbieter hat den Zugriff verweigert.</string>
+    <string name="error_provider_cannot_handle_requests">Dieser Anbieter kann gerade keine Anfragen bearbeiten. Möglicherweise ist er offline oder wurde eingestellt.</string>
+    <string name="error_try_another_provider">Falls das Problem weiterhin besteht, wähle einen anderen Anbieter.</string>
+
+    <string name="error_urlhaus_blacklisted">Diese URL ist auf der Blacklist von: %1$s.\n%2$s\nWenn du weiterhin versuchst, URLs aus der Blacklist zu verkürzen, könntest du von der Nutzung dieser App ausgeschlossen werden.</string>
+    <string name="error_urlhaus_default">Sie wurde möglicherweise in der Vergangenheit missbräuchlich verwendet oder verweist auf einen anderen URL-Verkürzungsdienst.</string>
+    <string name="error_urlhaus_spammer_domain">Sie ist eine bekannte Spammer-Domain.</string>
+    <string name="error_urlhaus_phishing_domain">Sie ist eine bekannte Phishing-Domain.</string>
+    <string name="error_urlhaus_botnet_cc_domain">Sie ist eine bekannte Botnet C&amp;C-Domain.</string>
+    <string name="error_urlhaus_abused_legit_spam">Sie ist eine bekannte kompromittierte Website, die für das Hosting von Spam verwendet wird.</string>
+    <string name="error_urlhaus_abused_legit_malware">Sie ist eine bekannte kompromittierte Website, die für die Verteilung von Malware verwendet wird.</string>
+    <string name="error_urlhaus_abused_legit_phishing">Sie ist eine bekannte kompromittierte Website, die für das Hosting von Phishing verwendet wird.</string>
+    <string name="error_urlhaus_abused_legit_botnetcc">Sie ist eine bekannte kompromittierte Website, die für das Hosting von Botnet C&amp;C verwendet wird.</string>
+    <string name="error_urlhaus_abused_redirector">Sie ist ein bekannter missbrauchter Redirector oder URL-Verkürzer.</string>
+
+    <!--Others-->
+    <string name="generate_qr_code">QR-Code generieren</string>
+    <string name="scan_qr">Scanne diesen QR-Code auf einem anderen Gerät, um die URL anzuzeigen.</string>
+    <string name="delete_url_message">Möchtest du diese URL wirklich löschen?</string>
+    <string name="content_description_qr_code">QR-Code</string>
+
+</resources>

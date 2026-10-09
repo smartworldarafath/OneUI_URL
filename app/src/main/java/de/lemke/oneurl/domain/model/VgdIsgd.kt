@@ -1,0 +1,265 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.domain.model
+
+import android.content.Context
+import android.util.Log
+import com.android.volley.NoConnectionError
+import com.android.volley.ParseError
+import com.android.volley.Request
+import com.android.volley.VolleyError
+import com.android.volley.toolbox.JsonObjectRequest
+import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
+import de.lemke.oneurl.R
+import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import org.json.JSONObject
+import de.lemke.commonutils.R as commonutilsR
+
+/*
+docs:
+https://v.gd/apishorteningreference.php
+https://is.gd/apishorteningreference.php
+example:
+https://v.gd/create.php?format=json&url=www.example.com&shorturl=example
+https://is.gd/create.php?format=json&url=www.example.com&shorturl=example
+ */
+sealed class VgdIsgd : ShortURLProvider {
+    final override val group = "v.gd, is.gd"
+    final override val aliasConfig =
+        object : AliasConfig {
+            override val minAliasLength = MIN_ALIAS_LENGTH
+            override val maxAliasLength = MAX_ALIAS_LENGTH
+            override val allowedAliasCharacters = "a-z, A-Z, 0-9, _"
+
+            override fun isAliasValid(alias: String) = alias.matches(Regex("[a-zA-Z0-9_]+"))
+        }
+
+    override fun getAnalyticsURL(alias: String) = "$baseURL/stats.php?url=$alias"
+
+    override fun sanitizeLongURL(url: String) = url.urlEncodeAmpersand().trim()
+
+    fun getVgdIsgdCreateRequest(
+        longURL: String,
+        alias: String,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ): JsonObjectRequest {
+        val tag = "CreateRequest_$name"
+        val url = apiURL + "?format=json&url=" + longURL + if (alias.isBlank()) "" else "&shorturl=$alias&logstats=1"
+        Log.d(tag, "start request: $url")
+        return JsonObjectRequest(
+            Request.Method.GET,
+            url,
+            null,
+            { response -> handleResponse(tag, response, successCallback, errorCallback) },
+            { error -> handleError(tag, error, errorCallback) },
+        )
+    }
+
+    private fun handleResponse(
+        tag: String,
+        response: JSONObject,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ) {
+        Log.d(tag, "response: $response")
+        if (response.has("errorcode")) {
+            Log.e(tag, "errorcode: ${response.getString("errorcode")}")
+            Log.e(tag, "errormessage: ${response.optString("errormessage")}")
+            /*
+            Error code 1 - there was a problem with the original long URL provided.
+            Please specify a URL to shorten.                                            //should not happen, checked before
+            Please enter a valid URL to shorten.
+            Sorry, the URL you entered is on our internal blacklist. It may have been used abusively in the past,
+            or it may link to another URL redirection service.
+            Error code 2 - there was a problem with the short URL provided (for custom short URLs).
+            Short URLs must be at least 5 characters long.                               //should not happen, checked before
+            Short URLs may only contain the characters a-z, 0-9 and underscore.          //should not happen, checked before
+            The shortened URL you picked already exists, please choose another.
+            Error code 3 - our rate limit was exceeded (your app should wait before trying again).
+            Error code 4 - any other error (includes potential problems with our service such as a maintenance period).
+             */
+            when (response.getString("errorcode")) {
+                "1" -> {
+                    if (response.optString("errormessage").contains("blacklist", ignoreCase = true)) {
+                        errorCallback(GenerateURLError.BlacklistedURL())
+                    } else {
+                        errorCallback(GenerateURLError.InvalidURL)
+                    }
+                }
+
+                "2" -> {
+                    errorCallback(GenerateURLError.AliasAlreadyExists)
+                }
+
+                "3" -> {
+                    errorCallback(GenerateURLError.RateLimitExceeded)
+                }
+
+                "4" -> {
+                    errorCallback(GenerateURLError.ServiceTemporarilyUnavailable(baseURL))
+                }
+
+                else -> {
+                    errorCallback(
+                        GenerateURLError.Custom(
+                            HttpStatusCode.OK,
+                            response.optString("errormessage") + " (${response.getString("errorcode")})",
+                        ),
+                    )
+                }
+            }
+            return
+        }
+        if (!response.has("shorturl")) {
+            Log.e(tag, "error, response does not contain shorturl, response: $response")
+            errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+            return
+        }
+        val shortURL = response.getString("shorturl").trim()
+        Log.d(tag, "shortURL: $shortURL")
+        successCallback(shortURL)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun handleError(
+        tag: String,
+        error: VolleyError,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ) {
+        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
+        // escaping exception here would crash the whole app.
+        try {
+            Log.e(tag, "error: $error")
+            val networkResponse = error.networkResponse
+            val statusCode = networkResponse?.statusCode
+            val data = networkResponse?.data?.toString(Charsets.UTF_8)
+            Log.e(tag, "$statusCode: message: ${error.message} data: $data")
+            when {
+                error is NoConnectionError -> {
+                    errorCallback(GenerateURLError.ServiceOffline)
+                }
+
+                error is ParseError -> {
+                    errorCallback(GenerateURLError.ServiceTemporarilyUnavailable(baseURL))
+                }
+
+                statusCode == null -> {
+                    errorCallback(GenerateURLError.Unknown())
+                }
+
+                data.isNullOrBlank() -> {
+                    errorCallback(GenerateURLError.Unknown(statusCode))
+                }
+
+                else -> {
+                    errorCallback(GenerateURLError.Custom(statusCode, data))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "error: $e", e)
+            errorCallback(GenerateURLError.Unknown())
+        }
+    }
+
+    private companion object {
+        const val MIN_ALIAS_LENGTH = 5
+        const val MAX_ALIAS_LENGTH = 30
+    }
+
+    object Vgd : VgdIsgd() {
+        override val name = "v.gd"
+        override val baseURL = "https://v.gd"
+        override val apiURL = "$baseURL/create.php"
+        override val privacyURL = "$baseURL/privacy.php"
+        override val termsURL = "$baseURL/terms.php"
+
+        override fun getTipsCardTitleAndInfo(context: Context) =
+            Pair(
+                context.getString(commonutilsR.string.commonutils_info),
+                context.getString(R.string.redirect_hint_text),
+            )
+
+        override fun getInfoContents(context: Context): List<ProviderInfo> =
+            listOf(
+                ProviderInfo(
+                    dev.oneuiproject.oneui.R.drawable.ic_oui_confirm_before_next_action,
+                    context.getString(R.string.redirect_hint),
+                    context.getString(R.string.redirect_hint_text),
+                ),
+                ProviderInfo(
+                    dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
+                    context.getString(R.string.alias),
+                    context.getString(
+                        R.string.alias_text,
+                        aliasConfig.minAliasLength,
+                        aliasConfig.maxAliasLength,
+                        aliasConfig.allowedAliasCharacters,
+                    ),
+                ),
+                ProviderInfo(
+                    dev.oneuiproject.oneui.R.drawable.ic_oui_report,
+                    context.getString(R.string.analytics),
+                    context.getString(R.string.analytics_text),
+                ),
+            )
+
+        override fun getCreateRequest(
+            context: Context,
+            longURL: String,
+            alias: String,
+            successCallback: (shortURL: String) -> Unit,
+            errorCallback: (error: GenerateURLError) -> Unit,
+        ): JsonObjectRequest = getVgdIsgdCreateRequest(longURL, alias, successCallback, errorCallback)
+    }
+
+    object Isgd : VgdIsgd() {
+        override val name = "is.gd"
+        override val baseURL = "https://is.gd"
+        override val apiURL = "$baseURL/create.php"
+        override val privacyURL = "$baseURL/privacy.php"
+        override val termsURL = "$baseURL/terms.php"
+
+        override fun getInfoContents(context: Context): List<ProviderInfo> =
+            listOf(
+                ProviderInfo(
+                    dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
+                    context.getString(R.string.alias),
+                    context.getString(
+                        R.string.alias_text,
+                        aliasConfig.minAliasLength,
+                        aliasConfig.maxAliasLength,
+                        aliasConfig.allowedAliasCharacters,
+                    ),
+                ),
+                ProviderInfo(
+                    dev.oneuiproject.oneui.R.drawable.ic_oui_report,
+                    context.getString(R.string.analytics),
+                    context.getString(R.string.analytics_text),
+                ),
+            )
+
+        override fun getCreateRequest(
+            context: Context,
+            longURL: String,
+            alias: String,
+            successCallback: (shortURL: String) -> Unit,
+            errorCallback: (error: GenerateURLError) -> Unit,
+        ): JsonObjectRequest = getVgdIsgdCreateRequest(longURL, alias, successCallback, errorCallback)
+    }
+}

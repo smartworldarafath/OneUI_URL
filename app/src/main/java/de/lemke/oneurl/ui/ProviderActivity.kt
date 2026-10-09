@@ -1,0 +1,147 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.ui
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle.State.RESUMED
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import dagger.hilt.android.AndroidEntryPoint
+import de.lemke.commonutils.ui.utils.collectState
+import de.lemke.commonutils.ui.utils.onSingleLaunchClick
+import de.lemke.commonutils.ui.utils.prepareActivityTransformationTo
+import de.lemke.commonutils.ui.utils.setCustomBackAnimation
+import de.lemke.oneurl.R
+import de.lemke.oneurl.databinding.ActivityProviderBinding
+import de.lemke.oneurl.domain.model.ShortURLProvider
+import de.lemke.oneurl.ui.ProviderInfoBottomSheet.Companion.showProviderInfoBottomSheet
+import dev.oneuiproject.oneui.recyclerview.ktx.enableCoreSeslFeatures
+import dev.oneuiproject.oneui.utils.ItemDecorRule.ALL
+import dev.oneuiproject.oneui.utils.ItemDecorRule.NONE
+import dev.oneuiproject.oneui.utils.SemItemDecoration
+
+@AndroidEntryPoint
+class ProviderActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityProviderBinding
+    private val viewModel: ProviderViewModel by viewModels()
+    private val providerAdapter = ProviderAdapter()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        prepareActivityTransformationTo()
+        super.onCreate(savedInstanceState)
+        binding = ActivityProviderBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setCustomBackAnimation(binding.root)
+        initRecycler()
+        collectState(viewModel.state) { render(it) }
+        collectState(viewModel.navigation, minActiveState = RESUMED) { if (it is ProviderNavigation.Request) navigate(it) }
+    }
+
+    private fun render(state: ProviderUiState) {
+        providerAdapter.submitList(state.providers)
+        state.scrollToPosition?.let {
+            binding.providerList.scrollToPosition(it)
+            viewModel.onScrolledToSelected()
+        }
+    }
+
+    private fun navigate(request: ProviderNavigation.Request) {
+        when (request) {
+            is ProviderNavigation.ShowInfo -> showProviderInfoBottomSheet(request.provider)
+            ProviderNavigation.Finish -> finishAfterTransition()
+        }
+        viewModel.onNavigationHandled(request)
+    }
+
+    private fun initRecycler() {
+        binding.providerList.apply {
+            layoutManager = LinearLayoutManager(this@ProviderActivity)
+            adapter = providerAdapter
+            itemAnimator = null
+            addItemDecoration(SemItemDecoration(this@ProviderActivity, dividerRule = ALL, subHeaderRule = NONE))
+            enableCoreSeslFeatures()
+        }
+    }
+
+    companion object {
+        const val KEY_SELECT_PROVIDER = "key_select_provider"
+    }
+
+    private object ProviderDiffCallback : DiffUtil.ItemCallback<ShortURLProvider>() {
+        override fun areItemsTheSame(
+            oldItem: ShortURLProvider,
+            newItem: ShortURLProvider,
+        ): Boolean = oldItem.name == newItem.name
+
+        override fun areContentsTheSame(
+            oldItem: ShortURLProvider,
+            newItem: ShortURLProvider,
+        ): Boolean = oldItem.name == newItem.name
+    }
+
+    inner class ProviderAdapter : ListAdapter<ShortURLProvider, ProviderAdapter.ViewHolder>(ProviderDiffCallback) {
+        override fun getItemViewType(position: Int): Int = 0
+
+        override fun onCreateViewHolder(
+            parent: ViewGroup,
+            viewType: Int,
+        ): ViewHolder = ViewHolder(LayoutInflater.from(this@ProviderActivity).inflate(R.layout.listview_item_provider, parent, false))
+
+        override fun onBindViewHolder(
+            holder: ViewHolder,
+            position: Int,
+        ) {
+            val provider = getItem(position)
+            holder.title.text = provider.name
+            val infoContents = provider.getInfoContents(this@ProviderActivity)
+            val icons = listOf(holder.icon1, holder.icon2, holder.icon3, holder.icon4)
+            icons.forEachIndexed { index, iconView ->
+                if (index < infoContents.size) {
+                    iconView.setImageResource(infoContents[index].icon)
+                    iconView.isVisible = true
+                } else {
+                    iconView.isVisible = false
+                }
+            }
+            holder.parentView.onSingleLaunchClick { viewModel.onProviderClick(provider) }
+            holder.iconLayout.contentDescription = providerInfoDescription(provider.name, infoContents.take(icons.size))
+            holder.iconLayout.onSingleLaunchClick { viewModel.onProviderInfoClick(provider) }
+            holder.parentView.setOnLongClickListener { viewModel.onProviderInfoClick(provider).let { true } }
+        }
+
+        inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            val parentView: LinearLayout = itemView as LinearLayout
+            val title: TextView = parentView.findViewById(R.id.providerTitle)
+            val icon1: ImageView = parentView.findViewById(R.id.providerIcon1)
+            val icon2: ImageView = parentView.findViewById(R.id.providerIcon2)
+            val icon3: ImageView = parentView.findViewById(R.id.providerIcon3)
+            val icon4: ImageView = parentView.findViewById(R.id.providerIcon4)
+            val iconLayout: LinearLayout = parentView.findViewById(R.id.providerIconLayout)
+        }
+    }
+}

@@ -1,0 +1,181 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.domain.model
+
+import android.content.Context
+import android.util.Log
+import com.android.volley.DefaultRetryPolicy
+import com.android.volley.NoConnectionError
+import com.android.volley.ParseError
+import com.android.volley.VolleyError
+import com.android.volley.toolbox.JsonObjectRequest
+import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
+import de.lemke.oneurl.R
+import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import org.json.JSONException
+import org.json.JSONObject
+
+/*
+https://github.com/1pt-co/api
+example: https://csclub.uwaterloo.ca/~phthakka/1pt-express/addurl?long=test.com&short=test
+
+success: {
+    "message": "Added!",
+    "short": "ajodd",
+    "long": "t"
+}
+alias already exists: {
+    "message": "Added!",
+    "short": "asdfg",
+    "long": "asdfasdf",
+    "receivedRequestedShort": false
+}
+fail: {
+    "message": "Bad request"
+}
+
+2024/10/03: request took 14 seconds :/
+*/
+object Oneptco : ShortURLProvider {
+    override val enabled = false // returns 404??
+    override val name = "1pt.co"
+    override val baseURL = "https://1pt.co"
+    override val apiURL = "https://csclub.uwaterloo.ca/~phthakka/1pt-express/addurl"
+    override val aliasConfig =
+        object : AliasConfig {
+            override val minAliasLength = 0
+            override val maxAliasLength = AliasConfig.NO_MAX_ALIAS_SPECIFIED
+            override val allowedAliasCharacters = "a-z, A-Z, 0-9, _"
+
+            override fun isAliasValid(alias: String) = alias.matches(Regex("[a-zA-Z0-9_]+"))
+        }
+    private const val REQUEST_TIMEOUT_MS = 20000
+
+    override fun sanitizeLongURL(url: String) = url.urlEncodeAmpersand().trim()
+
+    override fun getInfoContents(context: Context): List<ProviderInfo> =
+        listOf(
+            ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
+                context.getString(R.string.alias),
+                context.getString(
+                    R.string.alias_text,
+                    aliasConfig.minAliasLength,
+                    aliasConfig.maxAliasLength,
+                    aliasConfig.allowedAliasCharacters,
+                ),
+            ),
+        )
+
+    override fun getCreateRequest(
+        context: Context,
+        longURL: String,
+        alias: String,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ): JsonObjectRequest {
+        val tag = "CreateRequest_$name"
+        val url = apiURL + "?long=$longURL" + if (alias.isBlank()) "" else "&short=$alias"
+        Log.d(tag, "start request: $url")
+        return object : JsonObjectRequest(
+            Method.POST,
+            url,
+            null,
+            { response -> handleResponse(tag, response, successCallback, errorCallback) },
+            { error -> handleError(tag, error, errorCallback) },
+        ) {
+            override fun getRetryPolicy() =
+                DefaultRetryPolicy(
+                    REQUEST_TIMEOUT_MS, // set timeout to 20 seconds
+                    DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT,
+                )
+        }
+    }
+
+    private fun handleResponse(
+        tag: String,
+        response: JSONObject,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ) {
+        try {
+            Log.d(tag, "response: $response")
+            when {
+                !response.has("message") -> {
+                    Log.e(tag, "error: no message")
+                    errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                }
+
+                response.getString("message") != "Added!" -> {
+                    Log.e(tag, "error: ${response.getString("message")}")
+                    errorCallback(GenerateURLError.Custom(HttpStatusCode.OK, response.getString("message")))
+                }
+
+                !response.has("short") -> {
+                    Log.e(tag, "error: no short")
+                    errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                }
+
+                response.has("receivedRequestedShort") && !response.getBoolean("receivedRequestedShort") -> {
+                    Log.e(tag, "error: alias already exists")
+                    errorCallback(GenerateURLError.AliasAlreadyExists)
+                }
+
+                else -> {
+                    val shortURL = "$baseURL/${response.getString("short").trim()}"
+                    Log.d(tag, "shortURL: $shortURL")
+                    successCallback(shortURL)
+                }
+            }
+        } catch (e: JSONException) {
+            Log.e(tag, "error parsing create response", e)
+            errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun handleError(
+        tag: String,
+        error: VolleyError,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ) {
+        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
+        // escaping exception here would crash the whole app.
+        try {
+            Log.e(tag, "error: $error")
+            val networkResponse = error.networkResponse
+            val statusCode = networkResponse?.statusCode
+            val data = networkResponse?.data?.toString(Charsets.UTF_8)
+            Log.e(tag, "$statusCode: message: ${error.message} data: $data")
+            when {
+                error is NoConnectionError -> errorCallback(GenerateURLError.ServiceOffline)
+                error is ParseError -> errorCallback(GenerateURLError.ServiceTemporarilyUnavailable(baseURL))
+                statusCode == null -> errorCallback(GenerateURLError.Unknown())
+                data.isNullOrBlank() -> errorCallback(GenerateURLError.Unknown(statusCode))
+                statusCode == HttpStatusCode.NOT_FOUND -> errorCallback(GenerateURLError.Unknown(statusCode))
+                statusCode == HttpStatusCode.INTERNAL_SERVER_ERROR -> errorCallback(GenerateURLError.InternalServerError)
+                statusCode == HttpStatusCode.SERVICE_UNAVAILABLE -> errorCallback(GenerateURLError.ServiceTemporarilyUnavailable(baseURL))
+                else -> errorCallback(GenerateURLError.Custom(statusCode, data))
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "error parsing error response", e)
+            errorCallback(GenerateURLError.Unknown())
+        }
+    }
+}

@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright 2023-2026 Leonard Lemke
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<dev.oneuiproject.oneui.layout.ToolbarLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?roundedCornerColor"
+    app:expanded="false"
+    app:showNavButtonAsBack="true">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        app:layout_location="main_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp">
+
+            <dev.oneuiproject.oneui.widget.RoundedLinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?android:colorBackground"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/url_qr_imageview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="10dp"
+                    android:layout_marginTop="10dp"
+                    android:contentDescription="@string/content_description_qr_code" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_qr_save_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawableEnd="@drawable/ic_oui_save_outline"
+                        android:minWidth="0dp" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_qr_share_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawableEnd="@drawable/ic_oui_share_outline"
+                        android:minWidth="0dp" />
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="fill_parent"
+                    android:layout_height="@dimen/sesl_list_divider_height"
+                    android:layout_marginStart="@dimen/sesl_list_divider_inset"
+                    android:layout_marginEnd="@dimen/sesl_list_divider_inset"
+                    android:background="@color/oui_des_list_divider_color"
+                    tools:ignore="PrivateResource" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="5dp"
+                    android:orientation="horizontal">
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_short_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="6dp"
+                        android:layout_weight="1"
+                        android:maxLines="10"
+                        android:textAlignment="viewStart"
+                        android:textSize="18sp" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_short_share_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawableEnd="@drawable/ic_oui_share_outline"
+                        android:minWidth="0dp" />
+
+                </LinearLayout>
+
+                <View
+                    android:layout_width="fill_parent"
+                    android:layout_height="@dimen/sesl_list_divider_height"
+                    android:layout_marginStart="@dimen/sesl_list_divider_inset"
+                    android:layout_marginEnd="@dimen/sesl_list_divider_inset"
+                    android:background="@color/oui_des_list_divider_color"
+                    tools:ignore="PrivateResource" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="5dp"
+                    android:orientation="horizontal">
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_long_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="6dp"
+                        android:layout_weight="1"
+                        android:maxLines="10"
+                        android:textAlignment="viewStart"
+                        android:textSize="18sp" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_long_share_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:drawableEnd="@drawable/ic_oui_share_outline"
+                        android:minWidth="0dp" />
+
+                </LinearLayout>
+
+            </dev.oneuiproject.oneui.widget.RoundedLinearLayout>
+
+            <dev.oneuiproject.oneui.widget.Separator
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/commonutils_info" />
+
+            <dev.oneuiproject.oneui.widget.RoundedLinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="5dp"
+                android:background="?android:colorBackground"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/url_title_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginStart="18dp"
+                        android:text="@string/title_"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:id="@+id/url_title_textview"
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginEnd="18dp"
+                        android:layout_weight="1"
+                        android:textSize="18sp" />
+
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/url_title_divider"
+                    android:layout_width="fill_parent"
+                    android:layout_height="@dimen/sesl_list_divider_height"
+                    android:layout_marginHorizontal="@dimen/sesl_list_divider_inset"
+                    android:background="@color/oui_des_list_divider_color"
+                    android:visibility="gone"
+                    tools:ignore="PrivateResource" />
+
+                <LinearLayout
+                    android:id="@+id/url_description_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginStart="18dp"
+                        android:text="@string/description_"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:id="@+id/url_description_textview"
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginEnd="18dp"
+                        android:layout_weight="1"
+                        android:textSize="18sp" />
+
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/url_description_divider"
+                    android:layout_width="fill_parent"
+                    android:layout_height="@dimen/sesl_list_divider_height"
+                    android:layout_marginHorizontal="@dimen/sesl_list_divider_inset"
+                    android:background="@color/oui_des_list_divider_color"
+                    android:visibility="gone"
+                    tools:ignore="PrivateResource" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginStart="18dp"
+                        android:text="@string/created_"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:id="@+id/url_added_textview"
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginEnd="18dp"
+                        android:layout_weight="1"
+                        android:textSize="18sp" />
+
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/url_visits_divider"
+                    android:layout_width="fill_parent"
+                    android:layout_height="@dimen/sesl_list_divider_height"
+                    android:layout_marginHorizontal="@dimen/sesl_list_divider_inset"
+                    android:background="@color/oui_des_list_divider_color"
+                    android:visibility="gone"
+                    tools:ignore="PrivateResource" />
+
+                <LinearLayout
+                    android:id="@+id/url_visits_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginStart="18dp"
+                        android:text="@string/visits_"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:id="@+id/url_visits_textview"
+                        style="?android:attr/textAppearanceLarge"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="18dp"
+                        android:layout_marginEnd="18dp"
+                        android:layout_weight="1"
+                        android:textSize="18sp" />
+
+                    <androidx.appcompat.widget.AppCompatButton
+                        android:id="@+id/url_visits_refresh_button"
+                        style="@style/ButtonStyle.Transparent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_marginEnd="18dp"
+                        android:drawableEnd="@drawable/ic_oui_refresh"
+                        android:minWidth="24dp"
+                        android:minHeight="24dp" />
+
+                </LinearLayout>
+
+            </dev.oneuiproject.oneui.widget.RoundedLinearLayout>
+
+            <dev.oneuiproject.oneui.widget.BottomTipView
+                android:id="@+id/bottomTipView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:title="@string/commonutils_tip"
+                app:linkText="@string/copy_shortened_url"
+                app:summary="@string/copy_to_clipboard_hint" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/url_bnv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_location="footer"
+        app:menu="@menu/url_bnv" />
+
+</dev.oneuiproject.oneui.layout.ToolbarLayout>

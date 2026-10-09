@@ -1,0 +1,399 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.ui
+
+import android.R.anim.fade_in
+import android.R.anim.fade_out
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.content.Intent.ACTION_PROCESS_TEXT
+import android.content.Intent.ACTION_SEARCH
+import android.content.Intent.ACTION_SEND
+import android.content.Intent.EXTRA_PROCESS_TEXT
+import android.content.Intent.EXTRA_TEXT
+import android.os.Build.VERSION.SDK_INT
+import android.os.Build.VERSION_CODES
+import android.os.Bundle
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.ItemTouchHelper.END
+import androidx.recyclerview.widget.ItemTouchHelper.START
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView.NO_POSITION
+import dagger.hilt.android.AndroidEntryPoint
+import de.lemke.commonutils.data.SettingsRepository
+import de.lemke.commonutils.di.DefaultDispatcher
+import de.lemke.commonutils.ui.activity.CommonUtilsAboutActivity
+import de.lemke.commonutils.ui.activity.CommonUtilsAboutMeActivity
+import de.lemke.commonutils.ui.activity.CommonUtilsSettingsActivity
+import de.lemke.commonutils.ui.utils.collectState
+import de.lemke.commonutils.ui.utils.configureCommonUtilsSplashScreen
+import de.lemke.commonutils.ui.utils.onSingleLaunchClick
+import de.lemke.commonutils.ui.utils.onSingleLaunchItemSelected
+import de.lemke.commonutils.ui.utils.onboardIfNeeded
+import de.lemke.commonutils.ui.utils.prepareActivityTransformationFrom
+import de.lemke.commonutils.ui.utils.restoreSearchAndActionMode
+import de.lemke.commonutils.ui.utils.saveSearchAndActionMode
+import de.lemke.commonutils.ui.utils.setupCommonUtilsAboutActivity
+import de.lemke.commonutils.ui.utils.setupCommonUtilsSettingsActivity
+import de.lemke.commonutils.ui.utils.setupHeaderAndNavRail
+import de.lemke.commonutils.ui.utils.toast
+import de.lemke.commonutils.ui.utils.transformToActivity
+import de.lemke.oneurl.BuildConfig
+import de.lemke.oneurl.R
+import de.lemke.oneurl.data.QRCodeCache
+import de.lemke.oneurl.databinding.ActivityMainBinding
+import de.lemke.oneurl.domain.GenerateQRCodeUseCase
+import de.lemke.oneurl.openLeakCanary
+import de.lemke.oneurl.ui.URLActivity.Companion.KEY_HIGHLIGHT_TEXT
+import de.lemke.oneurl.ui.URLActivity.Companion.KEY_SHORTURL
+import dev.oneuiproject.oneui.delegates.AppBarAwareYTranslator
+import dev.oneuiproject.oneui.delegates.ViewYTranslator
+import dev.oneuiproject.oneui.ktx.dpToPx
+import dev.oneuiproject.oneui.ktx.hideSoftInput
+import dev.oneuiproject.oneui.layout.ToolbarLayout.SearchModeOnBackBehavior.DISMISS
+import dev.oneuiproject.oneui.layout.ToolbarLayout.SearchOnActionMode
+import dev.oneuiproject.oneui.layout.startActionMode
+import dev.oneuiproject.oneui.layout.startSearchMode
+import dev.oneuiproject.oneui.recyclerview.ktx.configureImmBottomPadding
+import dev.oneuiproject.oneui.recyclerview.ktx.configureItemSwipeAnimator
+import dev.oneuiproject.oneui.recyclerview.ktx.enableCoreSeslFeatures
+import dev.oneuiproject.oneui.recyclerview.ktx.hideSoftInputOnScroll
+import dev.oneuiproject.oneui.utils.ItemDecorRule.ALL
+import dev.oneuiproject.oneui.utils.ItemDecorRule.NONE
+import dev.oneuiproject.oneui.utils.SemItemDecoration
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import de.lemke.commonutils.R as commonutilsR
+import dev.oneuiproject.oneui.R as iconsR
+import dev.oneuiproject.oneui.design.R as designR
+
+@AndroidEntryPoint
+class MainActivity :
+    AppCompatActivity(),
+    ViewYTranslator by AppBarAwareYTranslator() {
+    @Inject
+    lateinit var settings: SettingsRepository
+
+    @Inject
+    lateinit var qrCodeCache: QRCodeCache
+
+    @Inject
+    lateinit var generateQRCode: GenerateQRCodeUseCase
+
+    @DefaultDispatcher
+    @Inject
+    lateinit var defaultDispatcher: CoroutineDispatcher
+
+    private lateinit var binding: ActivityMainBinding
+    private val viewModel: MainViewModel by viewModels()
+    private val urlAdapter: URLAdapter by lazy {
+        URLAdapter(
+            this,
+            qrCodeCache,
+            generateQRCode,
+            lifecycleScope,
+            defaultDispatcher,
+            onAllSelectorStateChanged = { viewModel.setAllSelectorState(it) },
+            onBlockActionMode = ::launchActionMode,
+        )
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
+        super.onCreate(savedInstanceState)
+        onboardIfNeeded(
+            BuildConfig.VERSION_CODE,
+            BuildConfig.VERSION_NAME,
+            settings,
+            allowSkip = BuildConfig.FIRST_RUN_SKIPPABLE,
+        ) ?: return
+        prepareActivityTransformationFrom()
+        if (SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, fade_in, fade_out)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        configureCommonUtilsSplashScreen(splashScreen, binding.root) { !viewModel.state.value.isUIReady }
+        openMain(savedInstanceState)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if (!this::binding.isInitialized) return
+        outState.saveSearchAndActionMode(
+            isSearchMode = binding.drawerLayout.isSearchMode,
+            isActionMode = binding.drawerLayout.isActionMode,
+            selectedIds = urlAdapter.getSelectedIds(),
+        )
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == ACTION_SEARCH) binding.drawerLayout.setSearchQueryFromIntent(intent)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean = menuInflater.inflate(R.menu.main, menu).let { true }
+
+    override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
+        menu?.findItem(R.id.menu_item_show_all)?.isVisible = viewModel.filterFavorite.value
+        menu?.findItem(R.id.menu_item_only_show_favorites)?.isVisible = !viewModel.filterFavorite.value
+        return super.onPrepareOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean =
+        when (item.itemId) {
+            R.id.menu_item_search -> {
+                startSearch().let { true }
+            }
+
+            R.id.menu_item_show_all -> {
+                viewModel.setFilterFavorite(false)
+                invalidateOptionsMenu()
+                true
+            }
+
+            R.id.menu_item_only_show_favorites -> {
+                viewModel.setFilterFavorite(true)
+                invalidateOptionsMenu()
+                true
+            }
+
+            else -> {
+                super.onOptionsItemSelected(item)
+            }
+        }
+
+    private fun openMain(savedInstanceState: Bundle?) {
+        setupCommonUtilsAboutActivity(appVersion = BuildConfig.VERSION_NAME)
+        setupCommonUtilsSettingsActivity(
+            commonutilsR.xml.preferences_design,
+            R.xml.preferences,
+            commonutilsR.xml.preferences_dev_options_delete_app_data,
+            commonutilsR.xml.preferences_more_info,
+        )
+        initDrawer()
+        initRecycler()
+        savedInstanceState?.restoreSearchAndActionMode(onSearchMode = { startSearch() }, onActionMode = { launchActionMode(it) })
+        binding.addFab.hideOnScroll(binding.urlList)
+        binding.addFab.onSingleLaunchClick { it.transformToActivity(AddURLActivity::class.java, "AddURLTransition") }
+        collectState()
+        checkIntent()
+    }
+
+    private fun collectState() =
+        collectState(viewModel.state) { state ->
+            if (!state.isUIReady) return@collectState
+            urlAdapter.submitList(state.urls) { revealPending() }
+            updateRecyclerView(state.urls)
+        }
+
+    private fun revealPending() {
+        val shortURL = viewModel.state.value.reveal ?: return
+        val position = urlAdapter.positionOf(shortURL)
+        if (position != NO_POSITION) {
+            binding.urlList.smoothScrollToPosition(position)
+            viewModel.onRevealHandled(shortURL)
+        } else if (urlAdapter.isCurrentList(viewModel.state.value.urls)) {
+            viewModel.onRevealHandled(shortURL)
+        }
+    }
+
+    private fun checkIntent() {
+        val extraText = intent.getStringExtra(EXTRA_TEXT)
+        if (intent?.action == ACTION_SEND && "text/plain" == intent.type && !extraText.isNullOrBlank()) {
+            Log.d("MainActivity", "extraText: $extraText")
+            binding.addFab.transformToActivity(Intent(this, AddURLActivity::class.java).putExtra("url", extraText), "AddURLTransition")
+        }
+        val textFromSelectMenu = intent.getCharSequenceExtra(EXTRA_PROCESS_TEXT)
+        if (intent?.action == ACTION_PROCESS_TEXT && !textFromSelectMenu.isNullOrBlank()) {
+            Log.d("MainActivity", "textFromSelectMenu: $textFromSelectMenu")
+            binding.addFab.transformToActivity(
+                Intent(this, AddURLActivity::class.java).putExtra("url", textFromSelectMenu.toString()),
+                "AddURLTransition",
+            )
+        }
+    }
+
+    private fun startSearch() =
+        binding.drawerLayout.startSearchMode(
+            onStart = {
+                viewModel.setSearch(settings.search)
+                binding.addFab.isVisible = false
+                it.setQuery(viewModel.search.value, false)
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(it, 0)
+            },
+            onQuery = { query, isSubmit ->
+                viewModel.setSearch(query)
+                urlAdapter.highlightWord = query
+                settings.search = query
+                if (isSubmit) hideSoftInput()
+                true
+            },
+            onEnd = {
+                viewModel.setSearch(null)
+                if (!binding.drawerLayout.isActionMode) {
+                    binding.addFab.isVisible = true
+                    binding.addFab.show()
+                }
+                urlAdapter.highlightWord = ""
+            },
+            onBackBehavior = DISMISS,
+        )
+
+    @SuppressLint("RestrictedApi")
+    private fun initDrawer() {
+        binding.navigationView.findMenuItem(R.id.leaks_dest)?.isVisible = BuildConfig.DEBUG
+        binding.navigationView.onSingleLaunchItemSelected { item ->
+            when (item.itemId) {
+                R.id.qr_code_dest -> findViewById<View>(R.id.qr_code_dest).transformToActivity(GenerateQRCodeActivity::class.java)
+                R.id.provider_dest -> findViewById<View>(R.id.provider_dest).transformToActivity(ProviderActivity::class.java)
+                R.id.help_dest -> findViewById<View>(R.id.help_dest).transformToActivity(HelpActivity::class.java)
+                R.id.about_app_dest -> findViewById<View>(R.id.about_app_dest).transformToActivity(CommonUtilsAboutActivity::class.java)
+                R.id.about_me_dest -> findViewById<View>(R.id.about_me_dest).transformToActivity(CommonUtilsAboutMeActivity::class.java)
+                R.id.leaks_dest -> openLeakCanary(this)
+                R.id.settings_dest -> findViewById<View>(R.id.settings_dest).transformToActivity(CommonUtilsSettingsActivity::class.java)
+                else -> return@onSingleLaunchItemSelected false
+            }
+            true
+        }
+        binding.drawerLayout.setTitle(BuildConfig.APP_NAME)
+        binding.drawerLayout.setupHeaderAndNavRail(getString(R.string.about_app))
+        binding.noEntryView.translateYWithAppBar(binding.drawerLayout.appBarLayout, this)
+    }
+
+    private fun initRecycler() {
+        binding.urlList.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = urlAdapter.also { it.setupOnClickListeners() }
+            itemAnimator = null
+            addItemDecoration(SemItemDecoration(context, ALL, NONE).apply { setDividerInsetStart(92f.dpToPx(resources)) })
+            enableCoreSeslFeatures()
+            hideSoftInputOnScroll()
+            if (SDK_INT >= VERSION_CODES.R) configureImmBottomPadding(binding.drawerLayout)
+            urlAdapter.configureWith(this)
+        }
+        configureItemSwipeAnimator()
+    }
+
+    private fun updateRecyclerView(urls: List<de.lemke.oneurl.domain.model.URL>) {
+        binding.noEntryView.text =
+            when {
+                urls.isEmpty() && viewModel.search.value != null -> getString(commonutilsR.string.commonutils_no_results_found)
+                urls.isEmpty() && viewModel.filterFavorite.value -> getString(R.string.no_favorite_urls)
+                urls.isEmpty() -> getString(R.string.no_urls)
+                else -> ""
+            }
+        binding.noEntryView.updateVisibilityWith(urls, binding.urlList)
+    }
+
+    private fun URLAdapter.setupOnClickListeners() {
+        onClickItem = { position, url, viewHolder ->
+            if (isActionMode) {
+                toggleItem(url.id, position)
+            } else {
+                hideSoftInput()
+                viewHolder.itemView.transformToActivity(
+                    Intent(this@MainActivity, URLActivity::class.java)
+                        .putExtra(KEY_HIGHLIGHT_TEXT, viewModel.search.value)
+                        .putExtra(KEY_SHORTURL, url.shortURL),
+                )
+            }
+        }
+        onClickItemFavorite = { _, url -> viewModel.setFavorite(url, !url.favorite) }
+        onLongClickItem = {
+            if (!isActionMode) launchActionMode()
+            binding.urlList.seslStartLongPressMultiSelection()
+        }
+    }
+
+    private fun configureItemSwipeAnimator() {
+        binding.urlList.configureItemSwipeAnimator(
+            rightToLeftLabel = getString(commonutilsR.string.commonutils_add_to_fav),
+            leftToRightLabel = getString(commonutilsR.string.commonutils_remove_from_fav),
+            rightToLeftColor = getColor(R.color.primary_color_themed),
+            leftToRightColor = getColor(designR.color.oui_des_functional_red_color),
+            rightToLeftDrawableRes = iconsR.drawable.ic_oui_favorite_on,
+            leftToRightDrawableRes = iconsR.drawable.ic_oui_delete_outline,
+            isRightSwipeEnabled = { !urlAdapter.isActionMode },
+            isLeftSwipeEnabled = { !urlAdapter.isActionMode },
+            onSwiped = { position, swipeDirection, _ ->
+                val url = urlAdapter.getItemByPosition(position)
+                if (swipeDirection == START) {
+                    toast(commonutilsR.string.commonutils_add_to_fav)
+                    viewModel.setFavorite(url, true)
+                }
+                if (swipeDirection == END) {
+                    toast(commonutilsR.string.commonutils_remove_from_fav)
+                    viewModel.setFavorite(url, false)
+                }
+                true
+            },
+        )
+    }
+
+    private fun launchActionMode(initialSelected: Set<Long>? = null) {
+        binding.addFab.isVisible = false
+        urlAdapter.toggleActionMode(true, initialSelected)
+        binding.drawerLayout.startActionMode(
+            onInflateMenu = { menu, menuInflater -> menuInflater.inflate(R.menu.menu_select, menu) },
+            onEnd = {
+                urlAdapter.toggleActionMode(false)
+                if (!binding.drawerLayout.isSearchMode) {
+                    binding.addFab.isVisible = true
+                    binding.addFab.show()
+                }
+            },
+            onSelectMenuItem = { menuItem ->
+                val urls = viewModel.state.value.urls
+                val selectedIds = urlAdapter.getSelectedIds()
+                when (menuItem.itemId) {
+                    R.id.menu_item_delete -> {
+                        viewModel.delete(urls.filter { it.id in selectedIds })
+                        binding.drawerLayout.endActionMode()
+                        true
+                    }
+
+                    R.id.menu_item_add_to_favorites -> {
+                        viewModel.setFavorites(urls.filter { it.id in selectedIds }, true)
+                        binding.drawerLayout.endActionMode()
+                        true
+                    }
+
+                    R.id.menu_item_remove_from_favorites -> {
+                        viewModel.setFavorites(urls.filter { it.id in selectedIds }, false)
+                        binding.drawerLayout.endActionMode()
+                        true
+                    }
+
+                    else -> {
+                        false
+                    }
+                }
+            },
+            onSelectAll = { isChecked: Boolean -> urlAdapter.onToggleSelectAll(isChecked) },
+            allSelectorStateFlow = viewModel.allSelectorState,
+            searchOnActionMode = SearchOnActionMode.NoDismiss,
+        )
+    }
+}

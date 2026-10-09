@@ -1,0 +1,156 @@
+/*
+ * Copyright 2023-2026 Leonard Lemke
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package de.lemke.oneurl.domain.model
+
+import android.content.Context
+import android.util.Log
+import com.android.volley.NoConnectionError
+import com.android.volley.VolleyError
+import com.android.volley.toolbox.StringRequest
+import de.lemke.commonutils.ui.utils.withHttps
+import de.lemke.oneurl.R
+import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+
+/*
+https://1s.is/
+example: https://1s.is/?original_url=https://example.com&custom_short_url=
+
+<span id="shortlink-url" style="color: #007bff; font-weight: bold;">https://1s.is/K5F8WO</span>
+
+supports alias (1- tested up to 100 chars, on its website it's limited to 30)
+no spaces, no accents, only (lowercase???) letters and numbers, use "-", not at the beginning or end, and no consecutive hyphens.
+
+if alias is taken -> <div class="shortlink-message">Short URL already exists. Please choose another one.</div>
+if url already shortened -> return existing short url regardless of alias... that's bad
+
+errors:
+The custom short URL must follow the correct format: no spaces, no accents, only letters and numbers,
+use "-", not at the beginning or end, and no consecutive hyphens.
+Short URL already exists. Please choose another one.
+ */
+object Onesis : ShortURLProvider {
+    private const val MAX_ALIAS_LENGTH = 100
+
+    override val enabled = false // security check failed
+    override val name = "1s.is"
+    override val baseURL = "https://1s.is"
+    override val aliasConfig =
+        object : AliasConfig {
+            override val minAliasLength = 1
+            override val maxAliasLength = MAX_ALIAS_LENGTH
+            override val allowedAliasCharacters = "a-z, 0-9"
+
+            override fun isAliasValid(alias: String) = alias.matches(Regex("[a-z0-9]+"))
+        }
+
+    override fun getInfoContents(context: Context): List<ProviderInfo> =
+        listOf(
+            ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
+                context.getString(R.string.alias),
+                context.getString(
+                    R.string.alias_text,
+                    aliasConfig.minAliasLength,
+                    aliasConfig.maxAliasLength,
+                    aliasConfig.allowedAliasCharacters,
+                ),
+            ),
+        )
+
+    override fun sanitizeLongURL(url: String) = url.withHttps().trim()
+
+    @Suppress("TooGenericExceptionCaught")
+    override fun getCreateRequest(
+        context: Context,
+        longURL: String,
+        alias: String,
+        successCallback: (shortURL: String) -> Unit,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ): StringRequest {
+        val tag = "CreateRequest_$name"
+        Log.d(tag, "start request: $apiURL {original_url=$longURL, custom_short_url=$alias}")
+        return object : StringRequest(
+            Method.POST,
+            apiURL,
+            { response ->
+                // Log.d(tag, "response: $response")
+                val responseAlias =
+                    response
+                        .split("<span id=\"shortlink-url\"")
+                        .getOrNull(1)
+                        ?.split("</span>")
+                        ?.getOrNull(0)
+                        ?.split("https://1s.is/")
+                        ?.getOrNull(1)
+                if (responseAlias != null) {
+                    val shortURL = "$baseURL/$responseAlias"
+                    Log.d(tag, "shortURL: $shortURL")
+                    if (alias.isBlank() || responseAlias == alias) {
+                        successCallback(shortURL)
+                    } else {
+                        errorCallback(GenerateURLError.URLExistsWithDifferentAlias)
+                    }
+                } else {
+                    Log.e(tag, "could not find short URL in response")
+                    when {
+                        response.contains("Short URL already exists. Please choose another one.") -> {
+                            errorCallback(GenerateURLError.AliasAlreadyExists)
+                        }
+
+                        response.contains("The custom short URL must follow the correct format") -> {
+                            errorCallback(GenerateURLError.InvalidAlias)
+                        }
+
+                        else -> {
+                            errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                        }
+                    }
+                }
+            },
+            { error -> handleOnesisError(tag, error, errorCallback) },
+        ) {
+            override fun getParams() = mapOf("original_url" to longURL, "custom_short_url" to alias)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun handleOnesisError(
+        tag: String,
+        error: VolleyError,
+        errorCallback: (error: GenerateURLError) -> Unit,
+    ) {
+        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
+        // escaping exception here would crash the whole app.
+        try {
+            Log.e(tag, "error: $error")
+            val networkResponse = error.networkResponse
+            val statusCode = networkResponse?.statusCode
+            val data = networkResponse?.data?.toString(Charsets.UTF_8)
+            Log.e(tag, "$statusCode: message: ${error.message} data: $data")
+            when {
+                error is NoConnectionError -> errorCallback(GenerateURLError.ServiceOffline)
+                statusCode == null -> errorCallback(GenerateURLError.Unknown())
+                statusCode == HttpStatusCode.SERVICE_UNAVAILABLE -> errorCallback(GenerateURLError.ServiceTemporarilyUnavailable(baseURL))
+                else -> errorCallback(GenerateURLError.Unknown(statusCode))
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "error parsing error response", e)
+            errorCallback(GenerateURLError.Unknown())
+        }
+    }
+}

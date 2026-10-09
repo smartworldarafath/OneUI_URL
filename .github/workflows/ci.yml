@@ -1,0 +1,310 @@
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-formatting:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Copy CI gradle.properties
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25.0.4+101.0.LTS'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Run formatting checks
+        run: chmod +x ./gradlew && ./gradlew spotlessCheck detekt --stacktrace
+        env:
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+      - name: Upload detekt report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detekt-report
+          path: app/build/reports/detekt/
+
+  lint:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Copy CI gradle.properties
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25.0.4+101.0.LTS'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Run lint
+        run: chmod +x ./gradlew && ./gradlew lintDebug --stacktrace
+        env:
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-*
+
+  local-tests:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Copy CI gradle.properties
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25.0.4+101.0.LTS'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Run local tests
+        run: chmod +x ./gradlew && ./gradlew testDebugUnitTest verifyRoborazziDebug koverXmlReportDebug koverHtmlReportDebug koverVerifyDebug --stacktrace
+        env:
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+      - name: Strip zero-instruction lines from coverage report
+        run: python3 .github/scripts/strip-zero-instruction-lines.py app/build/reports/kover/reportDebug.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: app/build/reports/kover/reportDebug.xml
+          flags: unittests
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          files: app/build/test-results/testDebugUnitTest/*.xml
+          flags: unittests
+      - name: Upload coverage report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kover-coverage-report
+          path: app/build/reports/kover/htmlDebug/
+      - name: Upload diff on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: roborazzi-diff
+          path: app/build/reports/roborazzi/
+      # Gradle's console prints only "<exceptionClass> at <frame>"; the message is in these.
+      - name: Upload unit test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-report
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            app/build/test-results/testDebugUnitTest/
+
+  instrumented-tests:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v2.0.0
+        with:
+          android: false
+          tool-cache: true
+          dotnet: true
+          haskell: true
+          swap-storage: true
+          docker-images: false
+          large-packages: false
+      - name: Copy CI gradle.properties
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25.0.4+101.0.LTS'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check runner
+        # /dev/kvm may legitimately be absent here; that's what this step is diagnosing.
+        run: |
+          date -u
+          ls -l /dev/kvm || true
+          nproc
+          free -m
+          df -h /
+      - name: Run instrumented tests (GMD)
+        run: |
+          set -o pipefail
+          chmod +x ./gradlew
+          ./gradlew pixel9Api35DebugAndroidTest \
+            -Pandroid.experimental.testOptions.managedDevices.emulator.showKernelLogging=true \
+            --info \
+            --stacktrace \
+            | tee gmd-build.log
+        env:
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+      # The GMD task can pass when the app crashes before the first test; the report then shows 0 tests or one synthetic failure.
+      - name: Check instrumented test count
+        run: |
+          shopt -s globstar nullglob
+          set -o pipefail
+          dexdumps=("$ANDROID_HOME"/build-tools/*/dexdump)
+          if [ ${#dexdumps[@]} -eq 0 ]; then
+            echo "::error::no dexdump under $ANDROID_HOME/build-tools"
+            exit 1
+          fi
+          dexdump=$(printf '%s\n' "${dexdumps[@]}" | sort -V | tail -n 1)
+          work=$(mktemp -d)
+          trap 'rm -rf "$work"' EXIT
+          header_pattern='<testsuites[^>]*>'
+          tests_pattern='[[:space:]]tests="([0-9]+)"'
+          failures_pattern='[[:space:]]failures="([0-9]+)"'
+          errors_pattern='[[:space:]]errors="([0-9]+)"'
+          status=0
+          for module in app; do
+            results="$module/build/outputs/androidTest-results/managedDevice/debug"
+            reports=("$results"/**/TEST-*.xml)
+            if [ ${#reports[@]} -eq 0 ]; then
+              echo "::error::$module: no TEST-*.xml report under $results"
+              status=1
+              continue
+            fi
+            executed=0
+            failed=0
+            for report in "${reports[@]}"; do
+              header=
+              if [[ $(<"$report") =~ $header_pattern ]]; then
+                header=${BASH_REMATCH[0]}
+              fi
+              if [[ $header =~ $tests_pattern ]]; then
+                executed=$((executed + 10#${BASH_REMATCH[1]}))
+              else
+                echo "::error::$module: no <testsuites tests=\"N\"> in $report"
+                status=1
+              fi
+              if [[ $header =~ $failures_pattern ]]; then
+                failed=$((failed + 10#${BASH_REMATCH[1]}))
+              else
+                echo "::error::$module: no <testsuites failures=\"N\"> in $report"
+                status=1
+              fi
+              if [[ $header =~ $errors_pattern ]]; then
+                failed=$((failed + 10#${BASH_REMATCH[1]}))
+              fi
+            done
+            if [ "$failed" -gt 0 ]; then
+              echo "::error::$module: the managed-device report lists $failed failed or errored instrumented tests"
+              status=1
+            fi
+            if [ "$executed" -eq 0 ]; then
+              echo "::error::$module: the managed device ran 0 instrumented tests"
+              status=1
+            fi
+            apk="$module/build/outputs/apk/androidTest/debug/${module##*/}-debug-androidTest.apk"
+            if [ ! -f "$apk" ]; then
+              echo "::error::$module: no compiled test APK at $apk"
+              status=1
+              continue
+            fi
+            dex_dir="$work/$module"
+            mkdir -p "$dex_dir"
+            if ! unzip -q "$apk" 'classes*.dex' -d "$dex_dir"; then
+              echo "::error::$module: cannot extract classes*.dex from $apk"
+              status=1
+              continue
+            fi
+            dexes=()
+            for dex in "$dex_dir"/classes*.dex; do
+              if grep -qF 'Lorg/junit/Test;' "$dex"; then
+                dexes+=("$dex")
+              fi
+            done
+            expected=0
+            if [ ${#dexes[@]} -gt 0 ] && ! expected=$("$dexdump" -a "${dexes[@]}" | awk '/^  VISIBILITY_RUNTIME Lorg\/junit\/Test;/ { n++ } END { print n + 0 }'); then
+              echo "::error::$module: $dexdump failed on the dex files of $apk"
+              status=1
+              continue
+            fi
+            echo "$module: Executed $executed instrumented tests (expected ≥ $expected from the test APK)"
+            if [ "$expected" -eq 0 ]; then
+              echo "::error::$module: no org.junit.Test methods in $apk"
+              status=1
+            elif [ "$executed" -gt 0 ] && [ "$executed" -lt "$expected" ]; then
+              echo "::error::$module: the managed device ran $executed instrumented tests, expected at least $expected"
+              status=1
+            fi
+          done
+          exit "$status"
+      - name: Dump kernel log on failure
+        if: failure()
+        run: sudo dmesg --ctime | tail -n 200 || true
+      - name: Upload GMD diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gmd-diagnostics
+          if-no-files-found: ignore
+          path: |
+            ~/.android/avd/gradle-managed/**/*.txt
+            gmd-build.log
+            app/build/outputs/androidTest-results/managedDevice/
+
+  assemble:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Copy CI gradle.properties
+        run: mkdir -p ~/.gradle ; cp .github/ci-gradle.properties ~/.gradle/gradle.properties
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25.0.4+101.0.LTS'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Assemble
+        run: chmod +x ./gradlew && ./gradlew assembleRelease -Pandroidx.baselineprofile.skipgeneration -x :benchmarks:pixel9Api35Setup --stacktrace
+        env:
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
+          GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
