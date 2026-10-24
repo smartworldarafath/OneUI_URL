@@ -22,6 +22,17 @@
   <a href="https://github.com/smartworldarafath/OneUI_URL/pulls" title="Pull Requests Welcome"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-prs.svg"><img src="assets/readme/light/badge-prs.svg" alt="PRs Welcome" height="28"></picture></a>
 </p>
 
+<br/>
+
+<p align="center">
+  <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/add_url_default_dark.png" height="340" alt="Add URL Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/provider_default_dark.png" height="340" alt="Provider Selection Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/url_default_dark.png" height="340" alt="URL Details Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/generate_qr_code_default_dark.png" height="340" alt="QR Code Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/settings_default_dark.png" height="340" alt="Settings Screen"/>
+</p>
+
 </div>
 
 ---
@@ -245,6 +256,17 @@ OneUI_URL/
   <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-urlhaus.svg"><img src="assets/readme/light/pill-urlhaus.svg" alt="URLhaus API" height="42"></picture>
 </p>
 
+<br/>
+
+<p align="center">
+  <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/add_url_default_dark.png" height="340" alt="Add URL Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/provider_default_dark.png" height="340" alt="Provider Selection Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/url_default_dark.png" height="340" alt="URL Details Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/generate_qr_code_default_dark.png" height="340" alt="QR Code Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/settings_default_dark.png" height="340" alt="Settings Screen"/>
+</p>
+
 </div>
 
 ---
@@ -252,6 +274,17 @@ OneUI_URL/
 <h3 id="screenshots"><picture><source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/readme/dark/hm-screenshots.svg"><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/h-screenshots.svg"><source media="(max-width: 640px)" srcset="assets/readme/light/hm-screenshots.svg"><img src="assets/readme/light/h-screenshots.svg" alt="Application Screenshots" width="100%"></picture></h3>
 
 <div align="center">
+
+<p align="center">
+  <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/add_url_default_dark.png" height="340" alt="Add URL Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/provider_default_dark.png" height="340" alt="Provider Selection Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/url_default_dark.png" height="340" alt="URL Details Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/generate_qr_code_default_dark.png" height="340" alt="QR Code Screen"/>
+  <img loading="lazy" src="app/src/test/screenshots/settings_default_dark.png" height="340" alt="Settings Screen"/>
+</p>
+
+<br/>
 
 <p align="center">
   <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>

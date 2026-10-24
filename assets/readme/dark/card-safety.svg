@@ -19,6 +19,6 @@
     </g>
     <text x="36" y="125" font-family="system-ui, -apple-system, 'Google Sans', Roboto, sans-serif" font-size="21" font-weight="700" fill="#ffffff">URLhaus Threat Scanner</text>
     <text x="36" y="152" font-family="system-ui, -apple-system, Roboto, sans-serif" font-size="13.5" font-weight="400" fill="#beabbe">
-      <tspan x="36" dy="0">Queries URLhaus threat intelligence API before shortening.</tspan><tspan x="36" dy="20">Blocks phishing, malware, botnet C&C and abusive</tspan><tspan x="36" dy="20">redirectors with direct links to VirusTotal reports.</tspan>
+      <tspan x="36" dy="0">Queries URLhaus threat intelligence API before shortening.</tspan><tspan x="36" dy="20">Blocks phishing, malware, botnet C&amp;C and abusive</tspan><tspan x="36" dy="20">redirectors with direct links to VirusTotal reports.</tspan>
     </text>
   </svg>
