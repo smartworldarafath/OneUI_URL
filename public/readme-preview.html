@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneURL - Material 3 Expressive README Preview</title>
+  <style>
+    :root {
+      --bg: #140d16;
+      --surface: #201822;
+      --text: #f0e1ee;
+      --subtext: #cfbccc;
+      --border: #3b2c3d;
+    }
+    body.light {
+      --bg: #faf0f8;
+      --surface: #ede1eb;
+      --text: #211824;
+      --subtext: #675466;
+      --border: #dfd0de;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, 'Google Sans', Roboto, sans-serif;
+      margin: 0;
+      padding: 24px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+    .theme-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 18px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      cursor: pointer;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .center {
+      text-align: center;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="document.body.classList.toggle('light')">Toggle Light / Dark Mode</button>
+  <div class="container">
+    <div class="center section">
+      <img src="../img/OneURL_squircle.png" height="130" alt="OneURL App Icon">
+      <h1>OneURL</h1>
+      <p style="color: var(--subtext); font-size: 1.15rem;">A URL-Shortener and QR Code Generator crafted with Samsung OneUI Design & Google Pixel Material 3 Expressive styling</p>
+      
+      <div style="display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin: 24px 0;">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/btn-download.svg">
+          <img src="assets/readme/light/btn-download.svg" alt="Download APK" height="68">
+        </picture>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/btn-github.svg">
+          <img src="assets/readme/light/btn-github.svg" alt="Source Code" height="68">
+        </picture>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/btn-sponsor.svg">
+          <img src="assets/readme/light/btn-sponsor.svg" alt="Support Project" height="68">
+        </picture>
+      </div>
+
+      <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 16px 0;">
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-android.svg"><img src="assets/readme/light/badge-android.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-kotlin.svg"><img src="assets/readme/light/badge-kotlin.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-oneui.svg"><img src="assets/readme/light/badge-oneui.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-urlhaus.svg"><img src="assets/readme/light/badge-urlhaus.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-clientonly.svg"><img src="assets/readme/light/badge-clientonly.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-zerobackend.svg"><img src="assets/readme/light/badge-zerobackend.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-apache.svg"><img src="assets/readme/light/badge-apache.svg" height="28"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/badge-prs.svg"><img src="assets/readme/light/badge-prs.svg" height="28"></picture>
+      </div>
+    </div>
+
+    <!-- Overview Banner -->
+    <div class="section">
+      <picture>
+        <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/readme/dark/hm-overview.svg">
+        <source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/h-overview.svg">
+        <source media="(max-width: 640px)" srcset="assets/readme/light/hm-overview.svg">
+        <img src="assets/readme/light/h-overview.svg" alt="Project Overview" width="100%">
+      </picture>
+    </div>
+
+    <!-- Features Banner & Bento Grid -->
+    <div class="section">
+      <picture>
+        <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/readme/dark/hm-features.svg">
+        <source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/h-features.svg">
+        <source media="(max-width: 640px)" srcset="assets/readme/light/hm-features.svg">
+        <img src="assets/readme/light/h-features.svg" alt="Features & Architecture" width="100%">
+      </picture>
+
+      <div class="grid">
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-providers.svg"><img src="assets/readme/light/card-providers.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-alias.svg"><img src="assets/readme/light/card-alias.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-safety.svg"><img src="assets/readme/light/card-safety.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-oneui.svg"><img src="assets/readme/light/card-oneui.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-qrcode.svg"><img src="assets/readme/light/card-qrcode.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-autocopy.svg"><img src="assets/readme/light/card-autocopy.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-history.svg"><img src="assets/readme/light/card-history.svg" width="430"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-speed.svg"><img src="assets/readme/light/card-speed.svg" width="430"></picture>
+      </div>
+    </div>
+
+    <!-- Tech Stack Banner & Pills -->
+    <div class="section">
+      <picture>
+        <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/readme/dark/hm-techstack.svg">
+        <source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/h-techstack.svg">
+        <source media="(max-width: 640px)" srcset="assets/readme/light/hm-techstack.svg">
+        <img src="assets/readme/light/h-techstack.svg" alt="Technology Stack" width="100%">
+      </picture>
+
+      <div class="pills">
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-kotlin.svg"><img src="assets/readme/light/pill-kotlin.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-cleanarch.svg"><img src="assets/readme/light/pill-cleanarch.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-hilt.svg"><img src="assets/readme/light/pill-hilt.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-sesl.svg"><img src="assets/readme/light/pill-sesl.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-room.svg"><img src="assets/readme/light/pill-room.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-coroutines.svg"><img src="assets/readme/light/pill-coroutines.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-volley.svg"><img src="assets/readme/light/pill-volley.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-roborazzi.svg"><img src="assets/readme/light/pill-roborazzi.svg" height="42"></picture>
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-urlhaus.svg"><img src="assets/readme/light/pill-urlhaus.svg" height="42"></picture>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
