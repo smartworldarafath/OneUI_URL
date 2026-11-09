@@ -24,9 +24,7 @@ import com.android.volley.toolbox.StringRequest
 import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
 import de.lemke.commonutils.ui.utils.withHttps
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
-import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import de.lemke.oneurl.data.VolleyQueue
 
 /*
 https://da.gd/help
@@ -58,6 +56,11 @@ object Dagd : ShortURLProvider {
     override fun getInfoContents(context: Context): List<ProviderInfo> =
         listOf(
             ProviderInfo(
+                dev.oneuiproject.oneui.R.drawable.ic_oui_confirm_before_next_action,
+                context.getString(R.string.redirect_hint),
+                context.getString(R.string.redirect_hint_text_dagd),
+            ),
+            ProviderInfo(
                 dev.oneuiproject.oneui.R.drawable.ic_oui_tool_outline,
                 context.getString(R.string.alias),
                 context.getString(
@@ -80,7 +83,7 @@ object Dagd : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -111,8 +114,7 @@ object Dagd : ShortURLProvider {
                 }
             },
             { error ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.w(tag, "error: $error")
                     val message = error.message
@@ -136,7 +138,7 @@ object Dagd : ShortURLProvider {
                                 Log.w(tag, "error, trying to create it anyway")
                             }
                             innerReq = requestCreateDAGD(longURL, alias, successCallback, errorCallback)
-                            RequestQueueSingleton.getInstance(context).addToRequestQueue(innerReq)
+                            queue.add(innerReq)
                         }
                     }
                 } catch (e: Exception) {
@@ -177,8 +179,7 @@ object Dagd : ShortURLProvider {
                 }
             },
             { error ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.e(tag, "error: $error")
                     val networkResponse = error.networkResponse

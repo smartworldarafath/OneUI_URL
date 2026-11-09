@@ -21,7 +21,7 @@ import android.view.View
 import androidx.test.core.app.ActivityScenario
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
-import de.lemke.oneurl.HiltTestRule
+import de.lemke.commonutils.HiltTestRule
 import de.lemke.oneurl.R
 import io.kotest.matchers.shouldBe
 import org.junit.Before
@@ -32,7 +32,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
-// sdk = [36]: Robolectric 4.16.1 max supported SDK; bump when 4.17+ adds SDK 37.
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [36])
@@ -43,6 +42,18 @@ class HelpActivityTest {
     @Before
     fun setup() {
         hiltRule.inject()
+    }
+
+    @Test
+    fun `the provider info button opens ProviderActivity in info mode`() {
+        withHelpActivity { activity ->
+            activity.findViewById<View>(R.id.providerInfoButton).performClick()
+
+            val startedIntent = shadowOf(activity).nextStartedActivity
+            startedIntent.component?.className shouldBe ProviderActivity::class.java.name
+            startedIntent.getStringExtra(ProviderActivity.KEY_MODE) shouldBe "Info"
+            startedIntent.getStringExtra("commonUtilsTransitionNameKey") shouldBe "ProviderTransformation"
+        }
     }
 
     @Test

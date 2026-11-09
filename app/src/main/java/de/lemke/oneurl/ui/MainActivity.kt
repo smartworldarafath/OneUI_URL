@@ -50,14 +50,13 @@ import de.lemke.commonutils.ui.activity.CommonUtilsAboutMeActivity
 import de.lemke.commonutils.ui.activity.CommonUtilsSettingsActivity
 import de.lemke.commonutils.ui.utils.collectState
 import de.lemke.commonutils.ui.utils.configureCommonUtilsSplashScreen
+import de.lemke.commonutils.ui.utils.launchDrawerPage
 import de.lemke.commonutils.ui.utils.onSingleLaunchClick
 import de.lemke.commonutils.ui.utils.onSingleLaunchItemSelected
 import de.lemke.commonutils.ui.utils.onboardIfNeeded
 import de.lemke.commonutils.ui.utils.prepareActivityTransformationFrom
 import de.lemke.commonutils.ui.utils.restoreSearchAndActionMode
 import de.lemke.commonutils.ui.utils.saveSearchAndActionMode
-import de.lemke.commonutils.ui.utils.setupCommonUtilsAboutActivity
-import de.lemke.commonutils.ui.utils.setupCommonUtilsSettingsActivity
 import de.lemke.commonutils.ui.utils.setupHeaderAndNavRail
 import de.lemke.commonutils.ui.utils.toast
 import de.lemke.commonutils.ui.utils.transformToActivity
@@ -67,6 +66,7 @@ import de.lemke.oneurl.data.QRCodeCache
 import de.lemke.oneurl.databinding.ActivityMainBinding
 import de.lemke.oneurl.domain.GenerateQRCodeUseCase
 import de.lemke.oneurl.openLeakCanary
+import de.lemke.oneurl.ui.ProviderActivity.Companion.transformToProviderActivity
 import de.lemke.oneurl.ui.URLActivity.Companion.KEY_HIGHLIGHT_TEXT
 import de.lemke.oneurl.ui.URLActivity.Companion.KEY_SHORTURL
 import dev.oneuiproject.oneui.delegates.AppBarAwareYTranslator
@@ -185,13 +185,6 @@ class MainActivity :
         }
 
     private fun openMain(savedInstanceState: Bundle?) {
-        setupCommonUtilsAboutActivity(appVersion = BuildConfig.VERSION_NAME)
-        setupCommonUtilsSettingsActivity(
-            commonutilsR.xml.preferences_design,
-            R.xml.preferences,
-            commonutilsR.xml.preferences_dev_options_delete_app_data,
-            commonutilsR.xml.preferences_more_info,
-        )
         initDrawer()
         initRecycler()
         savedInstanceState?.restoreSearchAndActionMode(onSearchMode = { startSearch() }, onActionMode = { launchActionMode(it) })
@@ -267,12 +260,12 @@ class MainActivity :
         binding.navigationView.onSingleLaunchItemSelected { item ->
             when (item.itemId) {
                 R.id.qr_code_dest -> findViewById<View>(R.id.qr_code_dest).transformToActivity(GenerateQRCodeActivity::class.java)
-                R.id.provider_dest -> findViewById<View>(R.id.provider_dest).transformToActivity(ProviderActivity::class.java)
-                R.id.help_dest -> findViewById<View>(R.id.help_dest).transformToActivity(HelpActivity::class.java)
-                R.id.about_app_dest -> findViewById<View>(R.id.about_app_dest).transformToActivity(CommonUtilsAboutActivity::class.java)
-                R.id.about_me_dest -> findViewById<View>(R.id.about_me_dest).transformToActivity(CommonUtilsAboutMeActivity::class.java)
-                R.id.leaks_dest -> openLeakCanary(this)
-                R.id.settings_dest -> findViewById<View>(R.id.settings_dest).transformToActivity(CommonUtilsSettingsActivity::class.java)
+                R.id.provider_dest -> findViewById<View>(R.id.provider_dest).transformToProviderActivity(ProviderScreenMode.Info)
+                R.id.help_dest -> launchDrawerPage<HelpActivity>(R.id.help_dest)
+                R.id.about_app_dest -> launchDrawerPage<CommonUtilsAboutActivity>(R.id.about_app_dest)
+                R.id.about_me_dest -> launchDrawerPage<CommonUtilsAboutMeActivity>(R.id.about_me_dest)
+                R.id.leaks_dest -> openLeakCanary()
+                R.id.settings_dest -> launchDrawerPage<CommonUtilsSettingsActivity>(R.id.settings_dest)
                 else -> return@onSingleLaunchItemSelected false
             }
             true

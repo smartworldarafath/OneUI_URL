@@ -30,18 +30,21 @@ import androidx.appcompat.view.menu.MenuBuilder
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.reflect.DeviceInfo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import de.lemke.commonutils.HiltTestRule
 import de.lemke.commonutils.bypassOobe
 import de.lemke.commonutils.data.SettingsRepository
+import de.lemke.commonutils.idleMainLooper
+import de.lemke.commonutils.returnFromLaunchedScreen
 import de.lemke.commonutils.ui.activity.CommonUtilsAboutActivity
 import de.lemke.commonutils.ui.activity.CommonUtilsAboutMeActivity
 import de.lemke.commonutils.ui.activity.CommonUtilsSettingsActivity
 import de.lemke.commonutils.ui.utils.COMMONUTILS_KEY_IS_SEARCH_MODE
 import de.lemke.oneurl.BuildConfig
-import de.lemke.oneurl.HiltTestRule
 import de.lemke.oneurl.R
 import de.lemke.oneurl.data.URLRepository
 import dev.oneuiproject.oneui.layout.NavDrawerLayout
@@ -49,11 +52,15 @@ import dev.oneuiproject.oneui.navigation.widget.DrawerNavigationView
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.mockk.every
-import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import javax.inject.Inject
 import leakcanary.AppWatcher
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -62,10 +69,15 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.fakes.RoboMenu
+import org.robolectric.shadows.ShadowActivity.IntentForResult
 import androidx.appcompat.R as appcompatR
 import dev.oneuiproject.oneui.design.R as designR
 
-// sdk = [36]: Robolectric 4.16.1 max supported SDK; bump when 4.17+ adds SDK 37.
+private const val TRANSITION_NAME_KEY = "commonUtilsTransitionNameKey"
+private const val ANIM_TYPE_KEY = "android:activity.animType"
+private const val ANIM_SCENE_TRANSITION = 5
+
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [36])
@@ -86,6 +98,11 @@ class MainActivityTest {
         if (!AppWatcher.isInstalled) {
             AppWatcher.manualInstall(ApplicationProvider.getApplicationContext<HiltTestApplication>())
         }
+    }
+
+    @After
+    fun unmockDeviceInfo() {
+        unmockkStatic(DeviceInfo::class)
     }
 
     @Test
@@ -118,7 +135,7 @@ class MainActivityTest {
     fun `onSaveInstanceState with initialized binding restores search mode`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity -> activity.onOptionsItemSelected(menuItem(R.id.menu_item_search)) }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.recreate()
             scenario.onActivity { activity ->
                 activity.findViewById<NavDrawerLayout>(R.id.drawerLayout).isSearchMode.shouldBeTrue()
@@ -132,9 +149,9 @@ class MainActivityTest {
         try {
             val activity = controller.get()
             activity.onOptionsItemSelected(menuItem(R.id.menu_item_search))
-            awaitMainIdle()
+            idleMainLooper()
             controller.newIntent(Intent(Intent.ACTION_SEARCH).putExtra(SearchManager.QUERY, "sometext"))
-            awaitMainIdle()
+            idleMainLooper()
             activity.findViewById<android.widget.TextView>(appcompatR.id.search_src_text).text.toString() shouldBe "sometext"
         } finally {
             controller.destroy()
@@ -147,7 +164,7 @@ class MainActivityTest {
         try {
             val activity = controller.get()
             controller.newIntent(Intent("some.other.action"))
-            awaitMainIdle()
+            idleMainLooper()
             activity.findViewById<NavDrawerLayout>(R.id.drawerLayout).isSearchMode.shouldBeFalse()
         } finally {
             controller.destroy()
@@ -157,7 +174,7 @@ class MainActivityTest {
     @Test
     fun `onPrepareOptionsMenu shows only-show-favorites item while filter is off`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val menu = activity.mainToolbarMenu()
                 menu.findItem(R.id.menu_item_show_all).isVisible.shouldBeFalse()
@@ -169,7 +186,7 @@ class MainActivityTest {
     @Test
     fun `onPrepareOptionsMenu with a null menu returns early without crashing`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.onPrepareOptionsMenu(null).shouldBeTrue() }
         }
     }
@@ -177,10 +194,9 @@ class MainActivityTest {
     @Test
     fun `onPrepareOptionsMenu with a menu missing the filter items does not crash`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
-                val menu = mockk<Menu> { every { findItem(any()) } returns null }
-                activity.onPrepareOptionsMenu(menu).shouldBeTrue()
+                activity.onPrepareOptionsMenu(RoboMenu(activity)).shouldBeTrue()
             }
         }
     }
@@ -188,16 +204,16 @@ class MainActivityTest {
     @Test
     fun `onOptionsItemSelected toggles filterFavorite and flips the menu visibility both ways`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.onOptionsItemSelected(menuItem(R.id.menu_item_only_show_favorites)).shouldBeTrue() }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val menu = activity.mainToolbarMenu()
                 menu.findItem(R.id.menu_item_show_all).isVisible.shouldBeTrue()
                 menu.findItem(R.id.menu_item_only_show_favorites).isVisible.shouldBeFalse()
             }
             scenario.onActivity { activity -> activity.onOptionsItemSelected(menuItem(R.id.menu_item_show_all)).shouldBeTrue() }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val menu = activity.mainToolbarMenu()
                 menu.findItem(R.id.menu_item_show_all).isVisible.shouldBeFalse()
@@ -233,7 +249,7 @@ class MainActivityTest {
                 .setType("text/plain")
                 .putExtra(EXTRA_TEXT, "https://example.com/shared")
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val started = shadowOf(activity).nextStartedActivity
                 started.component?.className shouldBe AddURLActivity::class.java.name
@@ -250,7 +266,7 @@ class MainActivityTest {
                 .setType("text/plain")
                 .putExtra(EXTRA_TEXT, "   ")
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> shadowOf(activity).nextStartedActivity shouldBe null }
         }
     }
@@ -262,7 +278,7 @@ class MainActivityTest {
                 .setAction(ACTION_PROCESS_TEXT)
                 .putExtra(EXTRA_PROCESS_TEXT, "https://example.com/selected")
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val started = shadowOf(activity).nextStartedActivity
                 started.component?.className shouldBe AddURLActivity::class.java.name
@@ -278,7 +294,7 @@ class MainActivityTest {
                 .setAction(ACTION_PROCESS_TEXT)
                 .putExtra(EXTRA_PROCESS_TEXT, "   ")
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> shadowOf(activity).nextStartedActivity shouldBe null }
         }
     }
@@ -291,7 +307,7 @@ class MainActivityTest {
                 .setType("image/png")
                 .putExtra(EXTRA_TEXT, "https://example.com/wrong-type")
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> shadowOf(activity).nextStartedActivity shouldBe null }
         }
     }
@@ -303,7 +319,7 @@ class MainActivityTest {
                 .setAction(ACTION_SEND)
                 .setType("text/plain")
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> shadowOf(activity).nextStartedActivity shouldBe null }
         }
     }
@@ -314,7 +330,7 @@ class MainActivityTest {
             Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
                 .setAction(ACTION_PROCESS_TEXT)
         ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> shadowOf(activity).nextStartedActivity shouldBe null }
         }
     }
@@ -326,7 +342,7 @@ class MainActivityTest {
             scenario.onActivity { activity ->
                 activity.onOptionsItemSelected(menuItem(R.id.menu_item_search))
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 activity.findViewById<View>(R.id.addFab).isVisible.shouldBeFalse()
                 activity.searchView().query.toString() shouldBe "prefill"
@@ -338,9 +354,9 @@ class MainActivityTest {
     fun `startSearch onQuery non-submit updates settings and view model search`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity -> activity.onOptionsItemSelected(menuItem(R.id.menu_item_search)) }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.searchView().setQuery("abc", false) }
-            awaitMainIdle()
+            idleMainLooper()
             settings.search shouldBe "abc"
         }
     }
@@ -349,9 +365,9 @@ class MainActivityTest {
     fun `startSearch onQuery submit updates settings and view model search`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity -> activity.onOptionsItemSelected(menuItem(R.id.menu_item_search)) }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.searchView().setQuery("xyz", true) }
-            awaitMainIdle()
+            idleMainLooper()
             settings.search shouldBe "xyz"
         }
     }
@@ -360,9 +376,9 @@ class MainActivityTest {
     fun `startSearch onEnd without action mode shows the fab again`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity -> activity.onOptionsItemSelected(menuItem(R.id.menu_item_search)) }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.findViewById<NavDrawerLayout>(R.id.drawerLayout).endSearchMode() }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.findViewById<View>(R.id.addFab).isVisible.shouldBeTrue() }
         }
     }
@@ -374,9 +390,9 @@ class MainActivityTest {
     fun `startSearch from action mode ends it and shows the fab immediately`() {
         urlRepository.seedUrl("https://da.gd/searchend1")
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.longClickFirstItem() }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val drawerLayout = activity.findViewById<NavDrawerLayout>(R.id.drawerLayout)
                 drawerLayout.isActionMode.shouldBeTrue()
@@ -384,7 +400,7 @@ class MainActivityTest {
 
                 activity.onOptionsItemSelected(menuItem(R.id.menu_item_search))
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val drawerLayout = activity.findViewById<NavDrawerLayout>(R.id.drawerLayout)
                 drawerLayout.isActionMode.shouldBeFalse()
@@ -392,7 +408,7 @@ class MainActivityTest {
 
                 drawerLayout.endSearchMode()
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> activity.findViewById<View>(R.id.addFab).isVisible.shouldBeTrue() }
         }
     }
@@ -412,18 +428,18 @@ class MainActivityTest {
     @Test
     fun `initDrawer skips setting leaks item visibility when the item is not present in the navigation menu`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val navigationView = activity.findViewById<DrawerNavigationView>(R.id.navigationView)
                 navigationView.drawerMenu().removeItem(R.id.leaks_dest)
                 activity.callInitDrawer()
                 navigationView.findMenuItem(R.id.leaks_dest).shouldBeNull()
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.qr_code_dest, 0)
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 shadowOf(activity).nextStartedActivity?.component?.className shouldBe GenerateQRCodeActivity::class.java.name
             }
@@ -435,8 +451,21 @@ class MainActivityTest {
         assertNavItemStarts(R.id.qr_code_dest, GenerateQRCodeActivity::class.java.name)
 
     @Test
-    fun `navigation item provider_dest opens ProviderActivity`() =
-        assertNavItemStarts(R.id.provider_dest, ProviderActivity::class.java.name)
+    fun `navigation item provider_dest opens ProviderActivity in info mode`() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            idleMainLooper()
+            scenario.onActivity { activity ->
+                activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.provider_dest, 0)
+            }
+            idleMainLooper()
+            scenario.onActivity { activity ->
+                val startedIntent = shadowOf(activity).nextStartedActivity
+                startedIntent.component?.className shouldBe ProviderActivity::class.java.name
+                startedIntent.getStringExtra(ProviderActivity.KEY_MODE) shouldBe "Info"
+                startedIntent.getStringExtra("commonUtilsTransitionNameKey") shouldBe "ProviderTransformation"
+            }
+        }
+    }
 
     @Test
     fun `navigation item help_dest opens HelpActivity`() = assertNavItemStarts(R.id.help_dest, HelpActivity::class.java.name)
@@ -453,14 +482,159 @@ class MainActivityTest {
     fun `navigation item settings_dest opens CommonUtilsSettingsActivity`() =
         assertNavItemStarts(R.id.settings_dest, CommonUtilsSettingsActivity::class.java.name)
 
+    private fun navigateFromDrawer(
+        @IdRes navItemId: Int,
+        isOneUi: Boolean,
+        taps: Int = 1,
+    ): List<IntentForResult> {
+        mockkStatic(DeviceInfo::class)
+        every { DeviceInfo.isOneUI() } returns isOneUi
+        val started = mutableListOf<IntentForResult>()
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            idleMainLooper()
+            scenario.onActivity { activity ->
+                val menu = activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu()
+                repeat(taps) { menu.performIdentifierAction(navItemId, 0) }
+            }
+            idleMainLooper()
+            scenario.onActivity { activity ->
+                generateSequence { shadowOf(activity).nextStartedActivityForResult }.forEach(started::add)
+            }
+        }
+        return started
+    }
+
+    private fun IntentForResult.shouldBePopOver(className: String) {
+        intent.component?.className shouldBe className
+        (intent.flags and Intent.FLAG_ACTIVITY_SINGLE_TOP) shouldBe Intent.FLAG_ACTIVITY_SINGLE_TOP
+        intent.hasExtra(TRANSITION_NAME_KEY) shouldBe false
+        options.shouldNotBeNull().getInt(ANIM_TYPE_KEY) shouldNotBe ANIM_SCENE_TRANSITION
+    }
+
+    private fun IntentForResult.shouldBeContainerTransform(
+        className: String,
+        transitionName: String = "commonUtilsActivityTransitionName",
+    ) {
+        intent.component?.className shouldBe className
+        (intent.flags and Intent.FLAG_ACTIVITY_SINGLE_TOP) shouldBe 0
+        intent.getStringExtra(TRANSITION_NAME_KEY) shouldBe transitionName
+        options.shouldNotBeNull().getInt(ANIM_TYPE_KEY) shouldBe ANIM_SCENE_TRANSITION
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `help_dest on a One UI tablet opens as a pop-over`() {
+        navigateFromDrawer(R.id.help_dest, isOneUi = true).single().shouldBePopOver(HelpActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `about_app_dest on a One UI tablet opens as a pop-over`() {
+        navigateFromDrawer(R.id.about_app_dest, isOneUi = true).single().shouldBePopOver(CommonUtilsAboutActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `about_me_dest on a One UI tablet opens as a pop-over`() {
+        navigateFromDrawer(R.id.about_me_dest, isOneUi = true).single().shouldBePopOver(CommonUtilsAboutMeActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `settings_dest on a One UI tablet opens as a pop-over`() {
+        navigateFromDrawer(R.id.settings_dest, isOneUi = true).single().shouldBePopOver(CommonUtilsSettingsActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw599dp")
+    fun `help_dest on a One UI phone keeps the container transform`() {
+        navigateFromDrawer(R.id.help_dest, isOneUi = true).single().shouldBeContainerTransform(HelpActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw599dp")
+    fun `about_app_dest on a One UI phone keeps the container transform`() {
+        navigateFromDrawer(R.id.about_app_dest, isOneUi = true)
+            .single()
+            .shouldBeContainerTransform(CommonUtilsAboutActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw599dp")
+    fun `about_me_dest on a One UI phone keeps the container transform`() {
+        navigateFromDrawer(R.id.about_me_dest, isOneUi = true)
+            .single()
+            .shouldBeContainerTransform(CommonUtilsAboutMeActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw599dp")
+    fun `settings_dest on a One UI phone keeps the container transform`() {
+        navigateFromDrawer(R.id.settings_dest, isOneUi = true)
+            .single()
+            .shouldBeContainerTransform(CommonUtilsSettingsActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `help_dest on a non-One UI tablet keeps the container transform`() {
+        navigateFromDrawer(R.id.help_dest, isOneUi = false).single().shouldBeContainerTransform(HelpActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `about_app_dest on a non-One UI tablet keeps the container transform`() {
+        navigateFromDrawer(R.id.about_app_dest, isOneUi = false)
+            .single()
+            .shouldBeContainerTransform(CommonUtilsAboutActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `about_me_dest on a non-One UI tablet keeps the container transform`() {
+        navigateFromDrawer(R.id.about_me_dest, isOneUi = false)
+            .single()
+            .shouldBeContainerTransform(CommonUtilsAboutMeActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `settings_dest on a non-One UI tablet keeps the container transform`() {
+        navigateFromDrawer(R.id.settings_dest, isOneUi = false)
+            .single()
+            .shouldBeContainerTransform(CommonUtilsSettingsActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `qr_code_dest on a One UI tablet is not a pop-over`() {
+        navigateFromDrawer(R.id.qr_code_dest, isOneUi = true).single().shouldBeContainerTransform(GenerateQRCodeActivity::class.java.name)
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `provider_dest on a One UI tablet is not a pop-over`() {
+        navigateFromDrawer(R.id.provider_dest, isOneUi = true)
+            .single()
+            .shouldBeContainerTransform(ProviderActivity::class.java.name, transitionName = "ProviderTransformation")
+    }
+
+    @Test
+    @Config(qualifiers = "sw600dp")
+    fun `double tap on settings_dest on a One UI tablet pops over once`() {
+        navigateFromDrawer(R.id.settings_dest, isOneUi = true, taps = 2)
+            .single()
+            .shouldBePopOver(CommonUtilsSettingsActivity::class.java.name)
+    }
+
     @Test
     fun `navigation item leaks_dest opens leak canary`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.leaks_dest, 0)
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 shadowOf(activity)
                     .nextStartedActivity
@@ -475,13 +649,13 @@ class MainActivityTest {
     @Test
     fun `navigation item unmapped id is not handled and starts nothing`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val menu = activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu()
                 menu.add(Menu.NONE, UNMAPPED_NAV_ITEM_ID, Menu.NONE, "unmapped")
                 menu.performIdentifierAction(UNMAPPED_NAV_ITEM_ID, 0)
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity -> shadowOf(activity).nextStartedActivity shouldBe null }
         }
     }
@@ -489,13 +663,13 @@ class MainActivityTest {
     @Test
     fun `double tap on a navigation item opens its screen once`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val menu = activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu()
                 menu.performIdentifierAction(R.id.help_dest, 0)
                 menu.performIdentifierAction(R.id.help_dest, 0)
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val shadowActivity = shadowOf(activity)
                 shadowActivity.nextStartedActivity.component?.className shouldBe HelpActivity::class.java.name
@@ -505,9 +679,32 @@ class MainActivityTest {
     }
 
     @Test
+    @Config(qualifiers = "sw600dp")
+    fun `a pop-over navigation item opens its screen again after the user returns`() {
+        mockkStatic(DeviceInfo::class)
+        every { DeviceInfo.isOneUI() } returns true
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            idleMainLooper()
+            scenario.onActivity { activity ->
+                activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.settings_dest, 0)
+            }
+            scenario.returnFromLaunchedScreen()
+            scenario.onActivity { activity ->
+                activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.settings_dest, 0)
+            }
+            idleMainLooper()
+            scenario.onActivity { activity ->
+                val started = generateSequence { shadowOf(activity).nextStartedActivityForResult }.toList()
+                started.size shouldBe 2
+                started.forEach { it.shouldBePopOver(CommonUtilsSettingsActivity::class.java.name) }
+            }
+        }
+    }
+
+    @Test
     fun `a navigation item opens its screen again after the user returns`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.help_dest, 0)
             }
@@ -515,7 +712,7 @@ class MainActivityTest {
             scenario.onActivity { activity ->
                 activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(R.id.help_dest, 0)
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val shadowActivity = shadowOf(activity)
                 shadowActivity.nextStartedActivity.component?.className shouldBe HelpActivity::class.java.name
@@ -527,13 +724,13 @@ class MainActivityTest {
     @Test
     fun `double tap on the add fab opens one AddURLActivity`() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val addFab = activity.findViewById<View>(R.id.addFab)
                 addFab.performClick()
                 addFab.performClick()
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 val shadowActivity = shadowOf(activity)
                 shadowActivity.nextStartedActivity.component?.className shouldBe AddURLActivity::class.java.name
@@ -547,11 +744,11 @@ class MainActivityTest {
         expectedClassName: String,
     ) {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 activity.findViewById<DrawerNavigationView>(R.id.navigationView).drawerMenu().performIdentifierAction(navItemId, 0)
             }
-            awaitMainIdle()
+            idleMainLooper()
             scenario.onActivity { activity ->
                 shadowOf(activity).nextStartedActivity?.component?.className shouldBe expectedClassName
             }

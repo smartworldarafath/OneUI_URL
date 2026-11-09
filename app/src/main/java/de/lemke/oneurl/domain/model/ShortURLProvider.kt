@@ -22,7 +22,7 @@ import android.util.Log
 import com.android.volley.NetworkResponse
 import com.android.volley.Request
 import com.android.volley.Response
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.data.VolleyQueue
 import java.util.Locale
 import de.lemke.commonutils.R as commonutilsR
 
@@ -62,39 +62,39 @@ https://sor.bz/
 object ShortURLProviderCompanion {
     private val provider: List<ShortURLProvider> =
         listOf(
-            Dagd,
             VgdIsgd.Isgd,
             VgdIsgd.Vgd,
+            Dagd,
             Kurzelinks.Kurzelinksde,
             Kurzelinks.Ocn,
             Kurzelinks.T1p,
             Kurzelinks.Ogy,
             Lstu,
             Tinube,
-            Ulvis, // disabled
+            Ulvis,
             Tinyurl,
-            Onesis, // disabled
+            Onesis,
             Gg,
-            L4f, // disabled
+            L4f,
             Oneptco,
             Tnyim,
             Shareaholic,
             Murl,
             Tly.Default,
             Tly.Ibitly,
-            Tly.Twtrto,
+            Twtrto,
             Tly.Jpegly,
-            Tly.Rebrandly, // disabled
-            Tly.Bitly, // disabled
-            Shrtlnk, // disabled
-            Shorturlat, // disabled
+            Tly.Rebrandly,
+            Tly.Bitly,
+            Shrtlnk,
+            Shorturlat,
             Zwsim,
             Spoome.Default,
             Spoome.Emoji,
-            Owovc.Owo, // disabled
-            Owovc.Zws, // disabled
-            Owovc.Sketchy, // disabled
-            Owovc.Gay, // disabled
+            Owovc.Owo,
+            Owovc.Zws,
+            Owovc.Sketchy,
+            Owovc.Gay,
         )
 
     // Follows the locale at process start; a locale change applies on the next app restart only.
@@ -106,7 +106,7 @@ object ShortURLProviderCompanion {
     internal fun providersFor(locale: Locale): List<ShortURLProvider> =
         if (locale.language == "de") provider else provider.filter { it !is Kurzelinks }
 
-    val default: ShortURLProvider = enabled.first()
+    val default: ShortURLProvider = VgdIsgd.Isgd
 
     fun getIfEnabledOrDefault(shortURLProvider: ShortURLProvider?): ShortURLProvider =
         if (shortURLProvider in enabled) shortURLProvider ?: default else default
@@ -118,19 +118,18 @@ object ShortURLProviderCompanion {
     fun fromStringOrDefault(name: String?): ShortURLProvider = getIfEnabledOrDefault(fromStringOrNull(name))
 }
 
-class Unknown : ShortURLProvider {
-    override val enabled = false
-    override val name = "Unknown"
-    override val baseURL = "https://www.leonard-lemke.com/apps/oneurl"
+/** A provider that only names stored links; it cannot create new ones. */
+abstract class UnavailableProvider : ShortURLProvider {
+    final override val enabled = false
 
-    override fun getCreateRequest(
-        context: Context,
+    final override fun getCreateRequest(
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
         errorCallback: (error: GenerateURLError) -> Unit,
     ): Request<*> {
-        Log.e("UnknownProvider", "Tried to generate short URL with unknown provider")
+        Log.e("UnavailableProvider", "Tried to generate short URL with unavailable provider $name")
         errorCallback(GenerateURLError.Unknown())
         return object : Request<Any>(Method.GET, "", Response.ErrorListener { }) {
             override fun deliverResponse(response: Any?) {
@@ -140,6 +139,19 @@ class Unknown : ShortURLProvider {
             override fun parseNetworkResponse(response: NetworkResponse?) = null
         }
     }
+}
+
+class Unknown : UnavailableProvider() {
+    override val name = "Unknown"
+    override val baseURL = "https://www.leonard-lemke.com/apps/oneurl"
+}
+
+object Twtrto : UnavailableProvider() {
+    override val name = "t.ly (twtr.to)"
+    override val baseURL = "https://t.ly"
+    override val group = Tly.Default.group
+    override val privacyURL = Tly.Default.privacyURL
+    override val termsURL = Tly.Default.termsURL
 }
 
 @Suppress("SameReturnValue")
@@ -160,11 +172,13 @@ interface ShortURLProvider {
         get() = null
     val aliasConfig: AliasConfig?
         get() = null
+    val clickCountPeriod: ClickCountPeriod
+        get() = ClickCountPeriod.AllTime
 
     fun getAnalyticsURL(alias: String): String? = null
 
     fun getURLClickCount(
-        context: Context,
+        queue: VolleyQueue,
         url: URL,
         callback: (clicks: Int?) -> Unit,
     ) = callback(null)
@@ -172,7 +186,7 @@ interface ShortURLProvider {
     fun sanitizeLongURL(url: String): String = url.trim()
 
     fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -219,6 +233,8 @@ interface AliasConfig {
     val allowedAliasCharacters: String
 
     fun isAliasValid(alias: String): Boolean
+
+    fun aliasLength(alias: String): Int = alias.length
 
     companion object {
         const val NO_MAX_ALIAS_SPECIFIED = 100

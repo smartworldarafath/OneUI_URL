@@ -22,8 +22,7 @@ import com.android.volley.NoConnectionError
 import com.android.volley.toolbox.StringRequest
 import de.lemke.commonutils.ui.utils.withHttps
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import de.lemke.oneurl.data.VolleyQueue
 
 /*
 https://gg.gg/
@@ -74,7 +73,7 @@ object Gg : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -86,39 +85,37 @@ object Gg : ShortURLProvider {
             Method.POST,
             apiURLCheck,
             { response ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.d(tag, "response: $response")
                     if (response.contains("Link with this path already exist", true)) {
                         errorCallback(GenerateURLError.AliasAlreadyExists)
                     } else {
-                        RequestQueueSingleton.getInstance(context).addToRequestQueue(
+                        queue.add(
                             requestCreateGg(longURL, alias, successCallback, errorCallback),
                         )
                     }
                 } catch (e: Exception) {
                     Log.e(tag, "error handling check response, creating anyway", e)
-                    RequestQueueSingleton.getInstance(context).addToRequestQueue(
+                    queue.add(
                         requestCreateGg(longURL, alias, successCallback, errorCallback),
                     )
                 }
             },
             { error ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.e(tag, "error: $error")
                     val networkResponse = error.networkResponse
                     val statusCode = networkResponse?.statusCode
                     val data = networkResponse?.data?.toString(Charsets.UTF_8)
                     Log.e(tag, "$statusCode: message: ${error.message} data: $data")
-                    RequestQueueSingleton.getInstance(context).addToRequestQueue(
+                    queue.add(
                         requestCreateGg(longURL, alias, successCallback, errorCallback),
                     )
                 } catch (e: Exception) {
                     Log.e(tag, "error handling check error response, creating anyway", e)
-                    RequestQueueSingleton.getInstance(context).addToRequestQueue(
+                    queue.add(
                         requestCreateGg(longURL, alias, successCallback, errorCallback),
                     )
                 }
@@ -141,8 +138,7 @@ object Gg : ShortURLProvider {
             Method.POST,
             apiURL,
             { response ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.d(tag, "response: $response")
                     when {
@@ -164,8 +160,7 @@ object Gg : ShortURLProvider {
                 }
             },
             { error ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.e(tag, "error: $error")
                     val networkResponse = error.networkResponse

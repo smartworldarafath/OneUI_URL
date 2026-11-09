@@ -16,14 +16,13 @@
 
 package de.lemke.oneurl.ui
 
-import android.content.Intent
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import dagger.hilt.android.testing.HiltAndroidTest
-import de.lemke.oneurl.HiltTestRule
+import de.lemke.commonutils.HiltTestRule
 import io.kotest.matchers.shouldBe
 import org.junit.Before
 import org.junit.Rule
@@ -43,12 +42,14 @@ class ProviderActivityTest {
     }
 
     @Test
-    fun activityLaunchesWithoutCrash() {
+    fun selectModeLaunchesWithoutCrash() = assertLaunches(ProviderScreenMode.Select)
+
+    @Test
+    fun infoModeLaunchesWithoutCrash() = assertLaunches(ProviderScreenMode.Info)
+
+    private fun assertLaunches(mode: ProviderScreenMode) {
         ActivityScenario
-            .launch<ProviderActivity>(
-                Intent(ApplicationProvider.getApplicationContext(), ProviderActivity::class.java),
-            ).use { scenario ->
-                scenario.state shouldBe Lifecycle.State.RESUMED
-            }
+            .launch<ProviderActivity>(ProviderActivity.intent(ApplicationProvider.getApplicationContext(), mode))
+            .use { scenario -> scenario.state shouldBe Lifecycle.State.RESUMED }
     }
 }

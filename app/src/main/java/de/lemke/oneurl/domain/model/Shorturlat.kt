@@ -22,9 +22,7 @@ import com.android.volley.NoConnectionError
 import com.android.volley.Request
 import com.android.volley.toolbox.StringRequest
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
-import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import de.lemke.oneurl.data.VolleyQueue
 import de.lemke.commonutils.R as commonutilsR
 
 /*
@@ -134,14 +132,14 @@ object Shorturlat : ShortURLProvider {
         )
 
     override fun getURLClickCount(
-        context: Context,
+        queue: VolleyQueue,
         url: URL,
         callback: (clicks: Int?) -> Unit,
     ) {
         val tag = "GetURLVisitCount_$name"
         val requestURL = "https://www.shorturl.at/url-total-clicks.php?u=${url.shortURL}"
         Log.d(tag, "start request: $url")
-        RequestQueueSingleton.getInstance(context).addToRequestQueue(
+        queue.add(
             StringRequest(
                 Request.Method.GET,
                 requestURL,
@@ -167,7 +165,7 @@ object Shorturlat : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -195,8 +193,7 @@ object Shorturlat : ShortURLProvider {
                 }
             },
             { error ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.e(tag, "error: $error")
                     val networkResponse = error.networkResponse

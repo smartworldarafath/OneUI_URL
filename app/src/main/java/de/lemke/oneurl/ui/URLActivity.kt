@@ -24,7 +24,6 @@ import android.text.style.UnderlineSpan
 import android.view.Menu
 import android.view.MenuItem
 import android.view.animation.AccelerateDecelerateInterpolator
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
@@ -33,9 +32,12 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle.State.RESUMED
 import com.skydoves.bundler.bundleValue
 import dagger.hilt.android.AndroidEntryPoint
-import de.lemke.commonutils.data.SettingsRepository
+import de.lemke.commonutils.ui.utils.BitmapExport
+import de.lemke.commonutils.ui.utils.InAppReview
+import de.lemke.commonutils.ui.utils.SingleLaunchResultLauncher
 import de.lemke.commonutils.ui.utils.collectState
 import de.lemke.commonutils.ui.utils.copyToClipboard
+import de.lemke.commonutils.ui.utils.launchBitmapExport
 import de.lemke.commonutils.ui.utils.onSingleLaunchClick
 import de.lemke.commonutils.ui.utils.openURL
 import de.lemke.commonutils.ui.utils.prepareActivityTransformationTo
@@ -43,10 +45,10 @@ import de.lemke.commonutils.ui.utils.registerForSingleLaunchResult
 import de.lemke.commonutils.ui.utils.setCustomBackAnimation
 import de.lemke.commonutils.ui.utils.setWindowTransparent
 import de.lemke.commonutils.ui.utils.shareText
-import de.lemke.commonutils.ui.utils.showInAppReviewOrFinish
 import de.lemke.commonutils.ui.utils.showOnce
 import de.lemke.commonutils.ui.utils.singleLaunch
 import de.lemke.commonutils.ui.utils.singleLaunchMenuItem
+import de.lemke.commonutils.ui.utils.toDocumentPick
 import de.lemke.commonutils.ui.utils.toast
 import de.lemke.commonutils.ui.utils.urlEncode
 import de.lemke.commonutils.ui.utils.withHttps
@@ -64,14 +66,14 @@ import dev.oneuiproject.oneui.design.R as designR
 @AndroidEntryPoint
 class URLActivity : AppCompatActivity() {
     @Inject
-    lateinit var settings: SettingsRepository
+    lateinit var inAppReview: InAppReview
 
     private lateinit var binding: ActivityUrlBinding
     private val viewModel: URLViewModel by viewModels()
     private lateinit var searchHighlighter: SearchHighlighter
     private var lastBoundShortURL: String? = null
     private var lastBoundQrCode: Bitmap? = null
-    private val exportQRCodeResultLauncher: ActivityResultLauncher<Intent> =
+    private val exportQRCodeResultLauncher: SingleLaunchResultLauncher<Intent> =
         registerForSingleLaunchResult(StartActivityForResult()) { viewModel.onDocumentPicked(it.toDocumentPick()) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -171,7 +173,7 @@ class URLActivity : AppCompatActivity() {
             .findItem(R.id.url_bnv_analytics)
             ?.isVisible = url.shortURLProvider.getAnalyticsURL(url.alias) != null
         binding.urlBnv.setOnItemSelectedListener { item -> handleBnvItemSelected(item, url) }
-        setCustomBackAnimation(binding.root, inAppReview = settings)
+        setCustomBackAnimation(binding.root, inAppReview = inAppReview)
     }
 
     private fun initQrControls() {
@@ -190,7 +192,7 @@ class URLActivity : AppCompatActivity() {
 
     private fun renderQrControls() {
         val hasQrCode = viewModel.state.value.qrCode != null
-        val exportIdle = viewModel.export.value != QRCodeExport.Running
+        val exportIdle = viewModel.export.value != BitmapExport.Running
         binding.urlQrImageview.isEnabled = hasQrCode
         binding.urlQrImageview.isLongClickable = exportIdle
         binding.urlQrSaveButton.isEnabled = hasQrCode && exportIdle
@@ -208,8 +210,8 @@ class URLActivity : AppCompatActivity() {
         return true
     }
 
-    private fun onExport(export: QRCodeExport) {
-        if (export is QRCodeExport.Result && launchQRCodeExport(export, exportQRCodeResultLauncher)) viewModel.onExportHandled(export)
+    private fun onExport(export: BitmapExport) {
+        if (export is BitmapExport.Result && launchBitmapExport(export, exportQRCodeResultLauncher)) viewModel.onExportHandled(export)
     }
 
     private fun handleBnvItemSelected(
@@ -265,6 +267,7 @@ class URLActivity : AppCompatActivity() {
         binding.urlVisitsDivider.isVisible = visitCount != null
         binding.urlVisitsLayout.isVisible = visitCount != null
         if (visitCount != null) {
+            binding.urlVisitsLabel.setText(url.shortURLProvider.clickCountPeriod.labelRes)
             binding.urlVisitsTextview.text = NumberFormat.getIntegerInstance(resources.configuration.locales[0]).format(visitCount)
         }
         renderVisitCountRefresh(state.isRefreshingVisits)
@@ -291,7 +294,7 @@ class URLActivity : AppCompatActivity() {
             }
 
             UrlDetailExit.Deleted -> {
-                showInAppReviewOrFinish(settings)
+                inAppReview.showOrFinish(this)
             }
         }
         viewModel.onExitHandled(reason)

@@ -25,9 +25,7 @@ import com.android.volley.toolbox.StringRequest
 import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
 import de.lemke.commonutils.ui.utils.withHttps
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
-import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import de.lemke.oneurl.data.VolleyQueue
 import de.lemke.commonutils.R as commonutilsR
 
 /*
@@ -39,6 +37,8 @@ Invalid URL.
 URL is too long.
 You are adding URLs too fast, please slow down.
 Enter your URL.
+URL is not responding. (the long URL does not answer, e.g. a 404 page)
+429 Too Many Requests (Cloudflare HTML page)
 
  */
 object Murl : ShortURLProvider {
@@ -70,45 +70,40 @@ object Murl : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getURLClickCount(
-        context: Context,
+        queue: VolleyQueue,
         url: URL,
         callback: (clicks: Int?) -> Unit,
     ) {
         val tag = "GetURLVisitCount_$name"
         val requestURL = "$baseURL/${url.alias}"
         Log.d(tag, "start request: $requestURL")
-        RequestQueueSingleton.getInstance(context).apply {
-            removeCacheEntry(requestURL) // this provider is weird
-            addToRequestQueue(
-                StringRequest(
-                    Request.Method.GET,
-                    requestURL,
-                    { response ->
-                        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                        // escaping exception here would crash the whole app.
-                        try {
-                            // Log.d(tag, "response: $response")
-                            // <span class="mu-mc count-480357" title="Views">1</span>
-                            val clicks = response.substringAfter("\" title=\"Views\">").substringBefore("</span>").toIntOrNull()
-                            Log.d(tag, response.substringAfter("entry-date").substringBefore("entry-links"))
-                            Log.d(tag, "clicks: $clicks")
-                            callback(clicks)
-                        } catch (e: Exception) {
-                            Log.e(tag, "error: ${e.message}", e)
-                            callback(null)
-                        }
-                    },
-                    { error ->
-                        Log.e(tag, "error: $error")
+        queue.removeCacheEntry(requestURL) // this provider is weird
+        queue.add(
+            StringRequest(
+                Request.Method.GET,
+                requestURL,
+                { response ->
+                    // An exception escaping a Volley callback on the main thread crashes the app.
+                    try {
+                        val clicks = response.substringAfter("\" title=\"Views\">").substringBefore("</span>").toIntOrNull()
+                        Log.d(tag, response.substringAfter("entry-date").substringBefore("entry-links"))
+                        Log.d(tag, "clicks: $clicks")
+                        callback(clicks)
+                    } catch (e: Exception) {
+                        Log.e(tag, "error: ${e.message}", e)
                         callback(null)
-                    },
-                ),
-            )
-        }
+                    }
+                },
+                { error ->
+                    Log.e(tag, "error: $error")
+                    callback(null)
+                },
+            ),
+        )
     }
 
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -149,7 +144,7 @@ object Murl : ShortURLProvider {
 
             else -> {
                 Log.e(tag, "error, response does not start with https://murl.com/, response: $response")
-                errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                errorCallback(GenerateURLError.Custom(HttpStatusCode.OK, response))
             }
         }
     }
@@ -160,8 +155,7 @@ object Murl : ShortURLProvider {
         error: VolleyError,
         errorCallback: (error: GenerateURLError) -> Unit,
     ) {
-        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-        // escaping exception here would crash the whole app.
+        // An exception escaping a Volley callback on the main thread crashes the app.
         try {
             Log.e(tag, "error: $error")
             val message = error.message
@@ -172,6 +166,7 @@ object Murl : ShortURLProvider {
             when {
                 error is NoConnectionError -> errorCallback(GenerateURLError.ServiceOffline)
                 statusCode == null -> errorCallback(GenerateURLError.Unknown())
+                statusCode == HttpStatusCode.TOO_MANY_REQUESTS -> errorCallback(GenerateURLError.RateLimitExceeded)
                 statusCode == HttpStatusCode.SERVICE_UNAVAILABLE -> errorCallback(GenerateURLError.ServiceTemporarilyUnavailable(baseURL))
                 data.isNullOrBlank() -> errorCallback(GenerateURLError.Unknown(statusCode))
                 data.contains("Long URL cannot be empty", true) -> errorCallback(GenerateURLError.InvalidURL)

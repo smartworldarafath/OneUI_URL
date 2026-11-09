@@ -25,9 +25,7 @@ import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.StringRequest
 import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
-import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import de.lemke.oneurl.data.VolleyQueue
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -158,24 +156,23 @@ object Tnyim : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getURLClickCount(
-        context: Context,
+        queue: VolleyQueue,
         url: URL,
         callback: (clicks: Int?) -> Unit,
     ) {
         val tag = "GetURLVisitCount_$name"
         val requestURL = "$apiURL?action=url-stats&format=json&shorturl=${url.alias}"
         Log.d(tag, "start request: $url")
-        RequestQueueSingleton.getInstance(context).addToRequestQueue(
+        queue.add(
             JsonObjectRequest(
                 Request.Method.POST,
                 requestURL,
                 null,
                 { response ->
-                    // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                    // escaping exception here would crash the whole app.
+                    // An exception escaping a Volley callback on the main thread crashes the app.
                     try {
                         Log.d(tag, "response: $response")
-                        val visitCount = response.optJSONObject("link")?.optString("clicks")?.toIntOrNull()
+                        val visitCount = response.optJSONObject("link")?.optStringOrNull("clicks")?.toIntOrNull()
                         Log.d(tag, "visitCount: $visitCount")
                         callback(visitCount)
                     } catch (e: Exception) {
@@ -193,7 +190,7 @@ object Tnyim : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -209,8 +206,8 @@ object Tnyim : ShortURLProvider {
                 try {
                     Log.d(tag, "response: $response")
                     val json = JSONObject(response)
-                    if (json.has("shorturl")) {
-                        val shortURL = json.getString("shorturl").trim()
+                    val shortURL = json.optStringOrNull("shorturl")?.trim()
+                    if (shortURL != null) {
                         Log.d(tag, "shortURL: $shortURL")
                         if (alias.isBlank() || shortURL == "$baseURL/$alias") {
                             successCallback(shortURL)
@@ -227,8 +224,7 @@ object Tnyim : ShortURLProvider {
                 }
             },
             { error ->
-                // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-                // escaping exception here would crash the whole app.
+                // An exception escaping a Volley callback on the main thread crashes the app.
                 try {
                     Log.e(tag, "error: $error")
                     val networkResponse = error.networkResponse
@@ -250,7 +246,7 @@ object Tnyim : ShortURLProvider {
         ) {
             override fun getRetryPolicy() =
                 DefaultRetryPolicy(
-                    REQUEST_TIMEOUT_MS, // set timeout to 10 seconds
+                    REQUEST_TIMEOUT_MS,
                     DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
                     DefaultRetryPolicy.DEFAULT_BACKOFF_MULT,
                 )

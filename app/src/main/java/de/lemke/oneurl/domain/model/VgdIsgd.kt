@@ -25,8 +25,7 @@ import com.android.volley.VolleyError
 import com.android.volley.toolbox.JsonObjectRequest
 import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import de.lemke.oneurl.data.VolleyQueue
 import org.json.JSONObject
 import de.lemke.commonutils.R as commonutilsR
 
@@ -80,7 +79,7 @@ sealed class VgdIsgd : ShortURLProvider {
         Log.d(tag, "response: $response")
         if (response.has("errorcode")) {
             Log.e(tag, "errorcode: ${response.getString("errorcode")}")
-            Log.e(tag, "errormessage: ${response.optString("errormessage")}")
+            Log.e(tag, "errormessage: ${response.optStringOrNull("errormessage").orEmpty()}")
             /*
             Error code 1 - there was a problem with the original long URL provided.
             Please specify a URL to shorten.                                            //should not happen, checked before
@@ -96,7 +95,7 @@ sealed class VgdIsgd : ShortURLProvider {
              */
             when (response.getString("errorcode")) {
                 "1" -> {
-                    if (response.optString("errormessage").contains("blacklist", ignoreCase = true)) {
+                    if (response.optStringOrNull("errormessage").orEmpty().contains("blacklist", ignoreCase = true)) {
                         errorCallback(GenerateURLError.BlacklistedURL())
                     } else {
                         errorCallback(GenerateURLError.InvalidURL)
@@ -116,22 +115,19 @@ sealed class VgdIsgd : ShortURLProvider {
                 }
 
                 else -> {
-                    errorCallback(
-                        GenerateURLError.Custom(
-                            HttpStatusCode.OK,
-                            response.optString("errormessage") + " (${response.getString("errorcode")})",
-                        ),
-                    )
+                    val code = response.getString("errorcode")
+                    val message = response.optStringOrNull("errormessage").orEmpty()
+                    errorCallback(GenerateURLError.Custom(code.toIntOrNull() ?: HttpStatusCode.OK, message))
                 }
             }
             return
         }
-        if (!response.has("shorturl")) {
+        val shortURL = response.optStringOrNull("shorturl")?.trim()
+        if (shortURL == null) {
             Log.e(tag, "error, response does not contain shorturl, response: $response")
             errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
             return
         }
-        val shortURL = response.getString("shorturl").trim()
         Log.d(tag, "shortURL: $shortURL")
         successCallback(shortURL)
     }
@@ -142,8 +138,7 @@ sealed class VgdIsgd : ShortURLProvider {
         error: VolleyError,
         errorCallback: (error: GenerateURLError) -> Unit,
     ) {
-        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-        // escaping exception here would crash the whole app.
+        // An exception escaping a Volley callback on the main thread crashes the app.
         try {
             Log.e(tag, "error: $error")
             val networkResponse = error.networkResponse
@@ -220,7 +215,7 @@ sealed class VgdIsgd : ShortURLProvider {
             )
 
         override fun getCreateRequest(
-            context: Context,
+            queue: VolleyQueue,
             longURL: String,
             alias: String,
             successCallback: (shortURL: String) -> Unit,
@@ -255,7 +250,7 @@ sealed class VgdIsgd : ShortURLProvider {
             )
 
         override fun getCreateRequest(
-            context: Context,
+            queue: VolleyQueue,
             longURL: String,
             alias: String,
             successCallback: (shortURL: String) -> Unit,

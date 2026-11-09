@@ -27,35 +27,34 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
-import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
-import de.lemke.oneurl.HiltTestRule
+import de.lemke.commonutils.HiltTestRule
+import de.lemke.commonutils.idleMainLooper
 import de.lemke.oneurl.R
+import de.lemke.oneurl.data.FakeNetworkMonitor
+import de.lemke.oneurl.data.FakePageTitleFetcher
+import de.lemke.oneurl.data.FakeShortURLClient
+import de.lemke.oneurl.data.URLRepository
 import de.lemke.oneurl.data.UserSettings
-import de.lemke.oneurl.domain.AddURLUseCase
-import de.lemke.oneurl.domain.GetURLTitleUseCase
-import de.lemke.oneurl.domain.GetURLUseCase
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.GenerateURLResult
-import de.lemke.oneurl.domain.generateURL.GenerateURLUseCase
+import de.lemke.oneurl.domain.model.Dagd
+import de.lemke.oneurl.domain.model.GenerateURLError
+import de.lemke.oneurl.domain.model.GenerateURLResult
 import de.lemke.oneurl.domain.model.Murl
 import de.lemke.oneurl.domain.model.Shareaholic
-import de.lemke.oneurl.domain.model.ShortURLProvider
-import de.lemke.oneurl.domain.model.URL
+import de.lemke.oneurl.domain.model.Spoome
 import de.lemke.oneurl.domain.model.VgdIsgd
 import de.lemke.oneurl.domain.testUrl
-import de.lemke.oneurl.ui.ProviderActivity.Companion.KEY_SELECT_PROVIDER
+import de.lemke.oneurl.ui.ProviderActivity.Companion.KEY_MODE
 import de.lemke.oneurl.ui.URLActivity.Companion.KEY_SHORTURL
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import io.mockk.coEvery
-import io.mockk.mockk
 import javax.inject.Inject
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -66,13 +65,6 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
 import org.robolectric.shadows.ShadowToast
 
-// sdk = [36]: Robolectric 4.16.1 max supported SDK; bump when 4.17+ adds SDK 37.
-//
-// VgdIsgd.Vgd (minAliasLength=5, maxAliasLength=30) is used rather than ShortURLProviderCompanion.default
-// so both the "too short" and "too long" alias branches are reachable — several providers (including
-// Dagd) have minAliasLength=0, making "too short" dead code for them. Tinyurl would also fit the length
-// bounds but has enabled=false (API retired), so getIfEnabledOrDefault() silently falls back to the
-// default provider and the assignment in setup() would have no effect.
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [36])
@@ -83,67 +75,76 @@ class AddURLActivityTest {
     @Inject
     lateinit var userSettings: UserSettings
 
-    @BindValue
-    @JvmField
-    val getURL: GetURLUseCase = mockk()
+    @Inject
+    lateinit var urlRepository: URLRepository
 
-    @BindValue
-    @JvmField
-    val getURLTitle: GetURLTitleUseCase = mockk()
+    @Inject
+    lateinit var networkMonitor: FakeNetworkMonitor
 
-    @BindValue
-    @JvmField
-    val generateURL: GenerateURLUseCase = mockk()
+    @Inject
+    lateinit var pageTitleFetcher: FakePageTitleFetcher
 
-    @BindValue
-    @JvmField
-    val addURL: AddURLUseCase = mockk()
-
-    private val aliasConfig = checkNotNull(VgdIsgd.Vgd.aliasConfig)
+    @Inject
+    lateinit var shortURLClient: FakeShortURLClient
 
     @Before
     fun setup() {
         hiltRule.inject()
         userSettings.selectedShortURLProvider = VgdIsgd.Vgd
-        coEvery { getURL(any<ShortURLProvider>(), any()) } returns emptyList()
-        coEvery { getURLTitle(any()) } returns "title"
-        coEvery { generateURL(any(), any(), any(), any()) } returns GenerateURLResult.Success("https://short.url/abc")
-        coEvery { addURL(any()) } returns Unit
+        pageTitleFetcher.titles["https://example.com"] = "title"
+        shortURLClient.results[VgdIsgd.Vgd] = GenerateURLResult.Success("https://short.url/abc")
     }
 
     @Test
     fun `submit sets too-short error`() {
-        withAddURLActivity { activity, urlField, aliasField, submit ->
+        withAddURLActivity { _, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("ab")
             submit()
-            aliasField.error shouldBe
-                activity.resources.getQuantityString(
-                    R.plurals.error_alias_too_short,
-                    aliasConfig.minAliasLength,
-                    aliasConfig.minAliasLength,
-                )
+            aliasField.error shouldBe "Alias too short (min. 5 characters)."
         }
     }
 
     @Test
     fun `submit sets too-long error`() {
-        withAddURLActivity { activity, urlField, aliasField, submit ->
+        withAddURLActivity { _, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("a".repeat(31))
             submit()
-            aliasField.error shouldBe activity.getString(R.string.error_alias_too_long, aliasConfig.maxAliasLength)
+            aliasField.error shouldBe "Alias exceeds the 30-character limit."
+        }
+    }
+
+    @Test
+    fun `submit accepts an emoji alias of 15 emoji`() {
+        userSettings.selectedShortURLProvider = Spoome.Emoji
+        shortURLClient.results[Spoome.Emoji] = GenerateURLResult.Success("https://spoo.me/short")
+        withAddURLActivity { _, urlField, aliasField, submit ->
+            urlField.setText("https://example.com")
+            aliasField.setText("😀".repeat(15))
+            submit()
+            aliasField.error.shouldBeNull()
+        }
+    }
+
+    @Test
+    fun `submit sets too-long error for an emoji alias of 16 emoji`() {
+        userSettings.selectedShortURLProvider = Spoome.Emoji
+        withAddURLActivity { _, urlField, aliasField, submit ->
+            urlField.setText("https://example.com")
+            aliasField.setText("😀".repeat(16))
+            submit()
+            aliasField.error shouldBe "Alias exceeds the 15-character limit."
         }
     }
 
     @Test
     fun `submit sets invalid-characters error`() {
-        withAddURLActivity { activity, urlField, aliasField, submit ->
+        withAddURLActivity { _, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("not valid!")
             submit()
-            aliasField.error shouldBe
-                activity.getString(R.string.error_invalid_alias_allowed_characters, aliasConfig.allowedAliasCharacters)
+            aliasField.error shouldBe "Invalid alias (allowed characters: a-z, A-Z, 0-9, _)."
         }
     }
 
@@ -198,7 +199,7 @@ class AddURLActivityTest {
             aliasField.setText("user-typed-alias")
 
             userSettings.selectedShortURLProvider = Murl
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             aliasField.text.toString() shouldBe "user-typed-alias"
         }
@@ -210,6 +211,15 @@ class AddURLActivityTest {
             activity.findViewById<View>(R.id.providerIconLayout).contentDescription shouldBe
                 "Provider info for v.gd: Hint before redirecting, Custom alias, Analytics"
             activity.findViewById<View>(R.id.providerIcon1).importantForAccessibility shouldBe View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+    }
+
+    @Test
+    fun `provider info button lists the preview page hint for da-gd`() {
+        userSettings.selectedShortURLProvider = Dagd
+        withAddURLActivity { activity, _, _, _ ->
+            activity.findViewById<View>(R.id.providerIconLayout).contentDescription shouldBe
+                "Provider info for da.gd: Hint before redirecting, Custom alias, Analytics"
         }
     }
 
@@ -228,7 +238,8 @@ class AddURLActivityTest {
 
             val startedIntent = shadowOf(activity).nextStartedActivity
             startedIntent.component?.className shouldBe ProviderActivity::class.java.name
-            startedIntent.getBooleanExtra(KEY_SELECT_PROVIDER, false).shouldBeTrue()
+            startedIntent.getStringExtra(KEY_MODE) shouldBe "Select"
+            startedIntent.getStringExtra("commonUtilsTransitionNameKey") shouldBe "ProviderTransformation"
         }
     }
 
@@ -281,34 +292,34 @@ class AddURLActivityTest {
 
     @Test
     fun `submit sets empty-url error for a blank url`() {
-        withAddURLActivity { activity, urlField, _, submit ->
+        withAddURLActivity { _, urlField, _, submit ->
             urlField.setText("")
             submit()
-            urlField.error shouldBe activity.getString(R.string.error_empty_url)
+            urlField.error shouldBe "Empty URL."
         }
     }
 
     @Test
-    fun `renderLoadingState shows progress and disables inputs while a lookup is pending`() {
-        val pending = CompletableDeferred<List<URL>>()
-        coEvery { getURL(any<ShortURLProvider>(), any()) } coAnswers { pending.await() }
+    fun `renderLoadingState shows progress and disables inputs while the short url is being generated`() {
+        val pending = CompletableDeferred<Unit>()
+        shortURLClient.gate = pending
+        shortURLClient.results[VgdIsgd.Vgd] = GenerateURLResult.Failure(GenerateURLError.RateLimitExceeded)
 
         withAddURLActivity { activity, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("")
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             activity.findViewById<View>(R.id.addUrlFooterProgress).isVisible.shouldBeTrue()
             activity.findViewById<View>(R.id.addUrlFooterButton).isVisible.shouldBeFalse()
-            activity.findViewById<TextView>(R.id.addUrlFooterProgressText).text.toString() shouldBe
-                activity.getString(R.string.checking_duplicates)
+            activity.findViewById<TextView>(R.id.addUrlFooterProgressText).text.toString() shouldBe "Generating URL…"
             urlField.isEnabled.shouldBeFalse()
             aliasField.isEnabled.shouldBeFalse()
             activity.findViewById<View>(R.id.providerSelection).isEnabled.shouldBeFalse()
 
-            pending.complete(listOf(testUrl(shortURL = "https://vgd.io/existing", provider = VgdIsgd.Vgd)))
-            shadowOf(Looper.getMainLooper()).idle()
+            pending.complete(Unit)
+            idleMainLooper()
 
             activity.findViewById<View>(R.id.addUrlFooterButton).isVisible.shouldBeTrue()
             activity.findViewById<View>(R.id.addUrlFooterProgress).isVisible.shouldBeFalse()
@@ -319,20 +330,20 @@ class AddURLActivityTest {
     @Test
     fun `submit with a blank alias and an existing match shows AlreadyShortened dialog that navigates to URLActivity`() {
         val existing = testUrl(shortURL = "https://vgd.io/existing", provider = VgdIsgd.Vgd)
-        coEvery { getURL(VgdIsgd.Vgd, "https://example.com") } returns listOf(existing)
+        runBlocking { urlRepository.addURL(existing) }
 
         withAddURLActivity { activity, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("")
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             val dialog = ShadowDialog.getLatestDialog() as? AlertDialog
             dialog shouldNotBe null
             dialog!!.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
             // AlertController dispatches the button's DialogInterface.OnClickListener through a
             // Handler message rather than calling it inline from performClick().
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             val startedIntent = shadowOf(activity).nextStartedActivity
             startedIntent.getStringExtra(KEY_SHORTURL) shouldBe existing.shortURL
@@ -341,34 +352,34 @@ class AddURLActivityTest {
 
     @Test
     fun `submit shows an error dialog wired through configureFor on generateURL failure`() {
-        coEvery { generateURL(any(), any(), any(), any()) } returns GenerateURLResult.Failure(GenerateURLError.NoInternet)
+        networkMonitor.online = false
 
-        withAddURLActivity { activity, urlField, aliasField, submit ->
+        withAddURLActivity { _, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("")
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             val dialog = ShadowDialog.getLatestDialog() as? AlertDialog
             dialog shouldNotBe null
             dialog!!
                 .findViewById<TextView>(androidx.appcompat.R.id.alertTitle)
                 ?.text
-                .toString() shouldBe activity.getString(R.string.no_internet)
+                .toString() shouldBe "No internet connection available…"
         }
     }
 
     @Test
     fun `a second error while the error dialog shows adds no second dialog`() {
-        coEvery { generateURL(any(), any(), any(), any()) } returns GenerateURLResult.Failure(GenerateURLError.NoInternet)
+        networkMonitor.online = false
 
         withAddURLActivity { _, urlField, aliasField, submit ->
             urlField.setText("https://example.com")
             aliasField.setText("")
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             ShadowDialog.getShownDialogs().size shouldBe 1
             ShadowDialog.getLatestDialog().isShowing.shouldBeTrue()
@@ -383,7 +394,7 @@ class AddURLActivityTest {
             urlField.setText("https://example.com")
             aliasField.setText("")
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
             val clipboard = activity.getSystemService(ClipboardManager::class.java)
             clipboard.primaryClip
@@ -402,18 +413,18 @@ class AddURLActivityTest {
             urlField.setText("https://example.com")
             aliasField.setText("")
             submit()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
 
-            ShadowToast.getTextOfLatestToast() shouldBe activity.getString(R.string.url_added)
+            ShadowToast.getTextOfLatestToast() shouldBe "URL added"
             activity.isFinishing.shouldBeTrue()
         }
     }
 
     @Test
     fun `an error that arrives while the activity is paused shows its dialog once after the resume and not again after recreation`() {
-        val pending = CompletableDeferred<List<URL>>()
-        coEvery { getURL(any<ShortURLProvider>(), any()) } coAnswers { pending.await() }
-        coEvery { generateURL(any(), any(), any(), any()) } returns GenerateURLResult.Failure(GenerateURLError.NoInternet)
+        val pending = CompletableDeferred<Unit>()
+        shortURLClient.gate = pending
+        shortURLClient.results[VgdIsgd.Vgd] = GenerateURLResult.Failure(GenerateURLError.RateLimitExceeded)
 
         ActivityScenario.launch(AddURLActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
@@ -421,16 +432,16 @@ class AddURLActivityTest {
                 activity.findViewById<View>(R.id.addUrlFooterButton).performClick()
             }
             scenario.moveToState(Lifecycle.State.STARTED)
-            pending.complete(emptyList())
-            shadowOf(Looper.getMainLooper()).idle()
+            pending.complete(Unit)
+            idleMainLooper()
             ShadowDialog.getShownDialogs().size shouldBe 0
 
             scenario.moveToState(Lifecycle.State.RESUMED)
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
             ShadowDialog.getShownDialogs().size shouldBe 1
 
             scenario.recreate()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
             ShadowDialog.getShownDialogs().size shouldBe 1
         }
     }

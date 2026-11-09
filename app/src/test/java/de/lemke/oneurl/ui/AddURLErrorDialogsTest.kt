@@ -28,8 +28,9 @@ import android.provider.Settings
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
+import de.lemke.commonutils.idleMainLooper
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
+import de.lemke.oneurl.domain.model.GenerateURLError
 import io.kotest.assertions.withClue
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.shouldBe
@@ -43,7 +44,6 @@ import org.robolectric.shadows.ShadowToast
 import androidx.appcompat.R as appcompatR
 import de.lemke.commonutils.R as commonutilsR
 
-// sdk = [36]: Robolectric 4.16.1 max supported SDK; bump when 4.17+ adds SDK 37.
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, sdk = [36])
 class AddURLErrorDialogsTest {
@@ -60,7 +60,7 @@ class AddURLErrorDialogsTest {
     ): AlertDialog =
         AlertDialog.Builder(context).apply { configureFor(error) }.create().apply {
             show()
-            shadowOf(Looper.getMainLooper()).idle()
+            idleMainLooper()
         }
 
     private class ThrowingStartActivityContext(base: Context) : ContextWrapper(base) {
@@ -69,8 +69,6 @@ class AddURLErrorDialogsTest {
             options: Bundle?,
         ): Unit = throw ActivityNotFoundException("no settings app")
     }
-
-    private fun idleMainLooper() = shadowOf(Looper.getMainLooper()).idle()
 
     private fun AlertDialog.messageText(): String? = findViewById<TextView>(android.R.id.message)?.text?.toString()
 
@@ -179,6 +177,15 @@ class AddURLErrorDialogsTest {
 
         dialog.titleText() shouldBe "Error (HTTP 404)"
         dialog.messageText() shouldBe withProviderHint(NOT_HANDLED_MESSAGE)
+    }
+
+    @Test
+    fun `configureFor Custom shows the generic message instead of an HTML body under status 200`() {
+        val body = "<html><body>Maintenance</body></html>"
+        val dialog = dialogFor(themedActivity(), GenerateURLError.Custom(statusCode = 200, customMessage = body))
+
+        dialog.titleText() shouldBe "Error (HTTP 200)"
+        dialog.messageText() shouldBe withProviderHint(UNKNOWN_MESSAGE)
     }
 
     @Test
@@ -292,6 +299,14 @@ class AddURLErrorDialogsTest {
     }
 
     @Test
+    fun `configureFor Custom with an empty message keeps the code in the title and shows the fallback text`() {
+        val dialog = dialogFor(themedActivity(), GenerateURLError.Custom(statusCode = 5, customMessage = ""))
+
+        dialog.titleText() shouldBe "Error (code 5)"
+        dialog.messageText() shouldBe withProviderHint(UNKNOWN_MESSAGE)
+    }
+
+    @Test
     fun `configureFor Unknown without a status code shows the generic unknown error`() {
         val dialog = dialogFor(themedActivity(), GenerateURLError.Unknown())
 
@@ -305,6 +320,14 @@ class AddURLErrorDialogsTest {
 
         dialogFor(activity, GenerateURLError.RateLimitExceeded).messageText() shouldBe withProviderHint(RATE_LIMIT_MESSAGE)
         dialogFor(activity, GenerateURLError.InternalServerError).messageText() shouldBe withProviderHint("Internal server error.")
+    }
+
+    @Test
+    fun `configureFor a rejected T_LY key tells the user to check or remove it`() {
+        val dialog = dialogFor(themedActivity(), GenerateURLError.TlyKeyRejected)
+
+        dialog.titleText() shouldBe "Error"
+        dialog.messageText() shouldBe "Your T.LY API key does not work. Check it or remove it."
     }
 
     @Test

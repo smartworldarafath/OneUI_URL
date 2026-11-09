@@ -24,8 +24,7 @@ import com.android.volley.VolleyError
 import com.android.volley.toolbox.JsonObjectRequest
 import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import de.lemke.oneurl.data.VolleyQueue
 import org.json.JSONObject
 
 /*
@@ -95,7 +94,7 @@ object L4f : ShortURLProvider {
     override fun sanitizeLongURL(url: String) = url.urlEncodeAmpersand().trim()
 
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -121,13 +120,12 @@ object L4f : ShortURLProvider {
         successCallback: (shortURL: String) -> Unit,
         errorCallback: (error: GenerateURLError) -> Unit,
     ) {
-        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-        // escaping exception here would crash the whole app.
+        // An exception escaping a Volley callback on the main thread crashes the app.
         try {
             Log.d(tag, "response: $response")
             val error = response.optBoolean("error")
-            val message = response.optString("message")
-            val shortURL = response.optJSONObject("data")?.optString("shorturl")
+            val message = response.optStringOrNull("message").orEmpty()
+            val shortURL = response.optJSONObject("data")?.optStringOrNull("shorturl")
             Log.d(tag, "error: $error message: $message shortURL: $shortURL")
             when {
                 !error && shortURL != null && (alias.isBlank() || shortURL == "$baseURL/$alias") -> {
@@ -170,8 +168,7 @@ object L4f : ShortURLProvider {
         error: VolleyError,
         errorCallback: (error: GenerateURLError) -> Unit,
     ) {
-        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-        // escaping exception here would crash the whole app.
+        // An exception escaping a Volley callback on the main thread crashes the app.
         try {
             Log.e(tag, "error: $error")
             val networkResponse = error.networkResponse

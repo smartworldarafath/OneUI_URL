@@ -25,9 +25,7 @@ import com.android.volley.toolbox.JsonObjectRequest
 import de.lemke.commonutils.ui.utils.urlEncodeAmpersand
 import de.lemke.commonutils.ui.utils.withHttps
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
-import de.lemke.oneurl.domain.generateURL.RequestQueueSingleton
+import de.lemke.oneurl.data.VolleyQueue
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -127,14 +125,14 @@ object Ulvis : ShortURLProvider {
         )
 
     override fun getURLClickCount(
-        context: Context,
+        queue: VolleyQueue,
         url: URL,
         callback: (clicks: Int?) -> Unit,
     ) {
         val tag = "GetURLVisitCount_$name"
         val requestURL = "$baseURL/API/read/get?id=${url.alias}"
         Log.d(tag, "start request: $requestURL")
-        RequestQueueSingleton.getInstance(context).addToRequestQueue(
+        queue.add(
             JsonObjectRequest(
                 Request.Method.POST,
                 requestURL,
@@ -159,7 +157,7 @@ object Ulvis : ShortURLProvider {
     }
 
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -187,26 +185,26 @@ object Ulvis : ShortURLProvider {
             Log.d(tag, "response: $response")
             val error = response.optJSONObject("error")
             val data = response.optJSONObject("data")
-            val shortURL = data?.optString("url")?.trim()
+            val shortURL = data?.optStringOrNull("url")?.trim()
             Log.d(tag, "shortURL: $shortURL")
-            val status = data?.optString("status")
+            val status = data?.optStringOrNull("status")
             when {
                 status == "custom-taken" -> {
                     errorCallback(GenerateURLError.AliasAlreadyExists)
                 }
 
-                !shortURL.isNullOrBlank() -> {
+                shortURL != null -> {
                     successCallback(shortURL)
                 }
 
                 error != null && error.has("code") -> {
                     val code = error.getInt("code")
+                    val message = error.optStringOrNull("msg")
                     when {
                         code == 0 -> errorCallback(GenerateURLError.DomainNotAllowed)
                         code == 1 -> errorCallback(GenerateURLError.InvalidURL)
                         code == 2 -> errorCallback(GenerateURLError.InvalidAlias)
-                        error.has("msg") -> errorCallback(GenerateURLError.Custom(code, error.optString("msg")))
-                        else -> errorCallback(GenerateURLError.Unknown(HttpStatusCode.OK))
+                        else -> errorCallback(GenerateURLError.Custom(code, message.orEmpty()))
                     }
                 }
 
@@ -226,8 +224,7 @@ object Ulvis : ShortURLProvider {
         error: VolleyError,
         errorCallback: (error: GenerateURLError) -> Unit,
     ) {
-        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-        // escaping exception here would crash the whole app.
+        // An exception escaping a Volley callback on the main thread crashes the app.
         try {
             Log.e(tag, "error: $error")
             val networkResponse = error.networkResponse

@@ -23,8 +23,7 @@ import com.android.volley.VolleyError
 import com.android.volley.toolbox.StringRequest
 import de.lemke.commonutils.ui.utils.withHttps
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import de.lemke.oneurl.data.VolleyQueue
 
 /*
 https://1s.is/
@@ -76,7 +75,7 @@ object Onesis : ShortURLProvider {
 
     @Suppress("TooGenericExceptionCaught")
     override fun getCreateRequest(
-        context: Context,
+        queue: VolleyQueue,
         longURL: String,
         alias: String,
         successCallback: (shortURL: String) -> Unit,
@@ -88,7 +87,6 @@ object Onesis : ShortURLProvider {
             Method.POST,
             apiURL,
             { response ->
-                // Log.d(tag, "response: $response")
                 val responseAlias =
                     response
                         .split("<span id=\"shortlink-url\"")
@@ -134,8 +132,7 @@ object Onesis : ShortURLProvider {
         error: VolleyError,
         errorCallback: (error: GenerateURLError) -> Unit,
     ) {
-        // Broad catch is intentional: this runs in a Volley callback on the main thread; an
-        // escaping exception here would crash the whole app.
+        // An exception escaping a Volley callback on the main thread crashes the app.
         try {
             Log.e(tag, "error: $error")
             val networkResponse = error.networkResponse

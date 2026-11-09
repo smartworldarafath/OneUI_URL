@@ -80,6 +80,14 @@
       <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-speed.svg"><img src="assets/readme/light/card-speed.svg" alt="Baseline Profile Boost" width="100%"></picture>
     </td>
   </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-backup.svg"><img src="assets/readme/light/card-backup.svg" alt="URL Backup & Restore" width="100%"></picture>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/card-tly.svg"><img src="assets/readme/light/card-tly.svg" alt="T.LY Key & Analytics" width="100%"></picture>
+    </td>
+  </tr>
 </table>
 
 </div>
@@ -88,18 +96,20 @@
 
 #### 1. 🔗 Multiple URL Shortener Providers
 * **Description**: Users can choose from over 20 reliable URL-shortening engines rather than relying on a single third-party service.
-* **How It Works**: When a user selects a provider and triggers shortening, the app dispatches an asynchronous network request through Volley (`RequestQueueSingleton`). Each service is decoupled as an independent object implementing `ShortURLProvider`. If an endpoint is rate-limited or unavailable, users can immediately toggle to another provider with instant fallback.
+* **How It Works**: When a user selects a provider and triggers shortening, the app dispatches an asynchronous network request through `ShortURLClient` backed by `VolleyQueue`. Each service is decoupled as an independent object implementing `ShortURLProvider`. If an endpoint is rate-limited or unavailable, users can immediately toggle to another provider with instant fallback.
 
 ```text
 ShortURLProvider_System/
 ├── ShortURLProvider.kt                 <-- Base ShortURLProvider interface & contract
 ├── ShortURLProviderCompanion.kt        <-- Registry of all active, grouped & disabled services
-├── Dagd.kt                             <-- da.gd provider implementation
+├── ShortURLClient.kt                   <-- Decoupled HTTP client interface & implementation
+├── VolleyQueue.kt                      <-- Thread-safe Volley networking engine
+├── Dagd.kt                             <-- da.gd provider implementation with preview hints
 ├── Tinyurl.kt                          <-- tinyurl.com provider implementation
 ├── VgdIsgd.kt                          <-- is.gd & v.gd provider implementation
-├── Tly.kt                              <-- t.ly and sub-domain provider engine
+├── Tly.kt                              <-- t.ly provider with personal API key support
 ├── Kurzelinks.kt                       <-- ogy.de, t1p.de, ocn.de, kurzelinks.de engines
-└── Spoome.kt                           <-- Standard and Emoji URL shortener engines
+└── Spoome.kt                           <-- Spoo.me v1 engine with Emoji URL support
 ```
 
 #### 2. ✏️ Custom Alias Support
@@ -113,13 +123,14 @@ Custom_Alias_Engine/
 └── AddURLActivity.kt                   <-- Input textfield & error banner interface
 ```
 
-#### 3. 🛡️ URL Safety & Malware Verification
+#### 3. 🛡️ URL Safety & Threat Assessment
 * **Description**: Proactively scans target destinations for malware, phishing, and spam before executing the shortening process.
-* **How It Works**: `GenerateURLUseCase` queries the **URLhaus** Threat Intelligence API (`CheckURLSafetyUseCase`) using the destination URL. If identified on spam or malicious blacklists (Spamhaus, SURBL, URLhaus), the operation is halted, displaying detailed diagnostic findings and VirusTotal links directly to the user.
+* **How It Works**: `GenerateURLUseCase` queries the **URLhaus** Threat Intelligence API through `UrlhausClient`. If identified on spam or malicious blacklists (Spamhaus, SURBL, URLhaus), the operation is halted immediately, displaying diagnostic findings and VirusTotal links directly to the user.
 
 ```text
 Safety_Verification_Engine/
-├── CheckURLSafetyUseCase.kt            <-- URLhaus API client & threat assessment
+├── UrlhausClient.kt                    <-- Dedicated URLhaus threat assessment API client
+├── CheckURLSafetyUseCase.kt            <-- Threat check interceptor pipeline
 ├── GenerateURLUseCase.kt               <-- Intercepting safety pipeline before provider call
 └── AddURLErrorDialogs.kt               <-- Security alert dialogs with VirusTotal links
 ```
@@ -136,17 +147,17 @@ OneUI_Design_System/
 └── SESL_Components/                    <-- SeslRecyclerView, SeslSwitchPreference & SeslButtons
 ```
 
-#### 5. 📷 QR Code Generation & Sharing
+#### 5. 📷 QR Code Generation & High-Res Rendering
 * **Description**: Instantly renders sharp, customizable QR codes for any created short link or arbitrary input string.
-* **How It Works**: The `GenerateQRCodeUseCase` generates vector-accurate Bitmaps using `QrEncoder`. The `QRCodeExportStateHolder` coordinates background execution via coroutines—allowing one-tap export to storage via Android's Storage Access Framework, system clipboard copy, or dispatch to nearby devices via Samsung Quick Share and Android ShareSheet.
+* **How It Works**: The `GenerateQRCodeUseCase` generates vector-accurate Bitmaps using `QRCodeRenderer`. The export engine coordinates background execution via coroutines—allowing one-tap export to storage via Android's Storage Access Framework, system clipboard copy, or dispatch to nearby devices via Samsung Quick Share and Android ShareSheet.
 
 ```text
 QRCode_Engine/
-├── GenerateQRCodeUseCase.kt            <-- High-resolution bitmap renderer with custom styling
+├── QRCodeRenderer.kt                   <-- Vector-accurate high-resolution QR Bitmap renderer
+├── GenerateQRCodeUseCase.kt            <-- UseCase handling QR size, styling and colors
 ├── QRCodeCache.kt                      <-- In-memory LRU cache preventing duplicate renders
-├── QRCodeExporter.kt                   <-- MediaStore & Storage Access Framework exporter
-├── QRCodeExport.kt                     <-- StateHolder managing Save, Copy & Share states
-└── QRBottomSheet.kt                    <-- Fluid OneUI modal sheet with full export actions
+├── QRBottomSheet.kt                    <-- Fluid OneUI modal sheet with full export actions
+└── GenerateQRCodeActivity.kt           <-- Standalone full-screen QR generator tool
 ```
 
 #### 6. 📋 Instant Clipboard & Auto-Copy
@@ -161,8 +172,8 @@ AutoCopy_Service/
 ```
 
 #### 7. 💾 Local History & Favorites Bookmarks
-* **Description**: Completely offline archive ensuring all your past shortened links and stats remain instantly accessible.
-* **How It Works**: An in-app **Room SQLite Database** stores URL entities (`URLDb`), mapping them to clean domain models via `DomainMapper`. Built-in reactive Kotlin `Flow` streams deliver real-time database updates to the UI, enabling instant search, visit counting, and fast toggle of favorite bookmarks.
+* **Description**: Completely offline archive ensuring all past shortened links and stats remain instantly accessible.
+* **How It Works**: An in-app **Room SQLite Database** stores URL entities (`URLDb`), mapping them to clean domain models via `DomainMapper`. Built-in reactive Kotlin `Flow` streams deliver real-time database updates to the UI, sorted by precise addition timestamps, enabling instant search, visit counting, and fast toggle of favorite bookmarks.
 
 ```text
 Persistence_Archive/
@@ -171,6 +182,53 @@ Persistence_Archive/
 ├── DomainMapper.kt                     <-- Clean Architecture converter (URLDb <-> URL)
 ├── URLRepository.kt                    <-- Single Source of Truth wrapping Room calls
 └── MainViewModel.kt                    <-- Emits filtered Flow<List<URL>> (All / Favorites)
+```
+
+#### 8. 🔑 T.LY Custom API Key & Encrypted Storage
+* **Description**: Allows users to enter their personal T.LY token to unlock unlimited link creations without hitting shared rate limits.
+* **How It Works**: Secured via `TlyKeyStore` using Android Keystore encryption (`KSafe`). Users can configure their token right inside the Provider Info bottom sheet, with automated verification and secure, isolated local storage.
+
+```text
+Tly_Key_Security/
+├── TlyKeyStore.kt                      <-- Keystore-backed personal API token store
+├── TlyApiKey.kt                        <-- Domain model with validation & token sanitization
+├── ProviderInfoBottomSheet.kt          <-- Direct token input interface with validation
+└── ProviderInfoViewModel.kt            <-- Reactive token state and verification handler
+```
+
+#### 9. 📦 URL Database Backup & Restore Engine
+* **Description**: Safeguard your entire shortened URL collection and migration between devices with full data integrity.
+* **How It Works**: Built with `UrlBackupSection` and `RoomBackupTransaction`. Exports entire history into structured JSON backups and imports with transactional safety, validating every record against schema constraints before writing to Room SQLite.
+
+```text
+Backup_Restore_Engine/
+├── UrlBackupSection.kt                 <-- OneUI Settings backup and restore controller
+├── RoomBackupTransaction.kt            <-- Atomic, verified import & export transactions
+├── BackupModule.kt                     <-- Hilt dependency injection for backup services
+└── SettingsActivity.kt                 <-- One-click backup creation & file picker restore
+```
+
+#### 10. 📊 Spoo.me v1 Analytics & Click Tracking
+* **Description**: Comprehensive visitor analytics tracking link performance across multiple time intervals.
+* **How It Works**: Upgraded to the official Spoo.me v1 REST API. Tracks click volume and visitor demographics across 24-hour, 7-day, and 90-day periods with `ClickCountPeriod`, displaying interactive graphs directly inside the URL Details view.
+
+```text
+Analytics_Engine/
+├── Spoome.kt                           <-- Spoo.me v1 API implementation with Emoji links
+├── ClickCountPeriod.kt                 <-- 24h, 7d, and 90d analytics period models
+├── GetVisitCountUseCase.kt             <-- Background statistics synchronization pipeline
+└── URLActivity.kt                      <-- Visual metric cards and click timeline
+```
+
+#### 11. 📱 Samsung OneUI Tablet Pop-over Experience
+* **Description**: Tailored multi-window and large-screen ergonomics for tablets and Samsung Galaxy Z Fold foldables.
+* **How It Works**: Leverages Samsung SESL pop-over dialogs (`DeviceInfo.isTablet`). Drawer navigation pages and provider details open as sleek, floating pop-overs anchored to the triggering control rather than taking over the entire widescreen view.
+
+```text
+Tablet_Popover_Engine/
+├── MainActivity.kt                     <-- Pop-over drawer launch detection for tablets
+├── ProviderActivity.kt                 <-- Contextual floating provider selection modal
+└── DeviceInfo.kt                       <-- Screen geometry and tablet form-factor detection
 ```
 
 ---
@@ -183,32 +241,46 @@ OneUI_URL/
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/de/lemke/oneurl/
-│   │   │   │   ├── data/                <-- Data Layer: Room DB, DAO, Preferences & QR Exporters
+│   │   │   │   ├── data/                <-- Data Layer: Room DB, Volley Clients, Keystore & Backup
+│   │   │   │   │   ├── backup/          <-- RoomBackupTransaction & Database Backup Helpers
 │   │   │   │   │   ├── database/        <-- AppDatabase, URLDao, Entities & Converters
+│   │   │   │   │   ├── NetworkMonitor.kt<-- Real-time Network Connectivity Monitor
+│   │   │   │   │   ├── PageTitleFetcher.kt<-- Remote Webpage Title Scraper
 │   │   │   │   │   ├── QRCodeCache.kt   <-- In-Memory & Disk QR Code Caching Engine
-│   │   │   │   │   ├── QRCodeExporter.kt<-- Storage Access Framework & Share Exporter
+│   │   │   │   │   ├── QRCodeRenderer.kt<-- High-Resolution Vector & Bitmap QR Generator
+│   │   │   │   │   ├── ShortURLClient.kt<-- Decoupled HTTP Client for Shortener Providers
+│   │   │   │   │   ├── TlyKeyStore.kt   <-- KSafe Encrypted Hardware Keystore for API Keys
 │   │   │   │   │   ├── URLRepository.kt <-- Room Repository managing URL Persistence
-│   │   │   │   │   └── UserSettings.kt  <-- User Settings & SharedPreferences wrapper
+│   │   │   │   │   ├── UrlhausClient.kt <-- URLhaus Threat Intelligence API Client
+│   │   │   │   │   ├── UserSettings.kt  <-- User Settings & DataStore / SharedPreferences
+│   │   │   │   │   └── VolleyQueue.kt   <-- Thread-Safe Request Queue Engine
 │   │   │   │   ├── di/                  <-- Dependency Injection (Hilt Modules)
+│   │   │   │   │   ├── BackupModule.kt  <-- Database Backup & Restore Service Provider
 │   │   │   │   │   ├── DispatchersModule.kt <-- Coroutine Dispatchers (@Default, @Io)
+│   │   │   │   │   ├── NetworkModule.kt <-- Network Client & Volley Queue Provider
 │   │   │   │   │   ├── PersistenceModule.kt <-- Room DB & DAO bindings
-│   │   │   │   │   ├── ProviderModule.kt    <-- ShortURLProvider injection bindings
-│   │   │   │   │   └── SettingsModule.kt    <-- App Settings provider injection
+│   │   │   │   │   ├── QRCodeRendererModule.kt <-- QR Code Rendering bindings
+│   │   │   │   │   ├── SecretsModule.kt <-- KSafe Android Keystore bindings
+│   │   │   │   │   └── SettingsModule.kt<-- App Settings provider injection
 │   │   │   │   ├── domain/              <-- Domain Layer: Business Logic & Use Cases
-│   │   │   │   │   ├── generateURL/     <-- URL Generation, Safety & Volley Request Engine
-│   │   │   │   │   │   ├── GenerateURLUseCase.kt <-- Core URL Shortening Pipeline
-│   │   │   │   │   │   └── RequestQueueSingleton.kt <-- Volley Networking Queue
-│   │   │   │   │   ├── model/           <-- 20+ URL Provider Implementations (TinyURL, da.gd, etc.)
+│   │   │   │   │   ├── model/           <-- 20+ URL Provider Implementations & Domain Entities
+│   │   │   │   │   │   ├── ClickCountPeriod.kt <-- 24h, 7d, and 90d analytics periods
+│   │   │   │   │   │   ├── ShortURLProvider.kt <-- Core Provider contract
+│   │   │   │   │   │   ├── TlyApiKey.kt     <-- Validated T.LY API token domain model
+│   │   │   │   │   │   └── UrlhausResult.kt <-- Threat assessment security result
 │   │   │   │   │   ├── CheckURLSafetyUseCase.kt <-- URLhaus Threat Intelligence Scanner
 │   │   │   │   │   ├── GenerateQRCodeUseCase.kt <-- High-res QR Code Generator
+│   │   │   │   │   ├── GenerateURLUseCase.kt    <-- Core URL Shortening Pipeline
 │   │   │   │   │   └── URLUseCases.kt   <-- Add, Delete, Observe, Update & Get URLs
-│   │   │   │   └── ui/                  <-- Presentation Layer: Activities, Adapters & ViewModels
+│   │   │   │   └── ui/                  <-- Presentation Layer: Activities, Dialogs & ViewModels
 │   │   │   │       ├── MainActivity.kt  <-- Core Hub displaying Saved URLs & Favorites
 │   │   │   │       ├── AddURLActivity.kt<-- URL Creation & Provider Selection Interface
 │   │   │   │       ├── URLActivity.kt   <-- Detailed URL Inspection & Analytics View
 │   │   │   │       ├── GenerateQRCodeActivity.kt <-- Standalone QR Code Generation Tool
-│   │   │   │       ├── SettingsActivity.kt       <-- App Preferences & Configuration Screen
-│   │   │   │       └── QRCodeExport.kt  <-- Quick Share, Clipboard & Export Handlers
+│   │   │   │       ├── ProviderActivity.kt       <-- Provider Selection (Widescreen Pop-over)
+│   │   │   │       ├── ProviderInfoBottomSheet.kt<-- Provider details & T.LY API Key Input
+│   │   │   │       ├── SettingsActivity.kt       <-- App Preferences & Backup/Restore Hub
+│   │   │   │       └── QRBottomSheet.kt          <-- Quick Share, Clipboard & Export Handlers
 │   │   │   └── res/                     <-- Android Resources: Layouts, Drawables, Strings, OneUI Themes
 │   │   └── test/                        <-- Architecture, Unit & Roborazzi Screenshot Tests
 │   └── build.gradle.kts                 <-- App-level build config, dependencies & baseline profiles
@@ -256,17 +328,6 @@ OneUI_URL/
   <picture><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/pill-urlhaus.svg"><img src="assets/readme/light/pill-urlhaus.svg" alt="URLhaus API" height="42"></picture>
 </p>
 
-<br/>
-
-<p align="center">
-  <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/add_url_default_dark.png" height="340" alt="Add URL Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/provider_default_dark.png" height="340" alt="Provider Selection Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/url_default_dark.png" height="340" alt="URL Details Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/generate_qr_code_default_dark.png" height="340" alt="QR Code Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/settings_default_dark.png" height="340" alt="Settings Screen"/>
-</p>
-
 </div>
 
 ---
@@ -274,17 +335,6 @@ OneUI_URL/
 <h3 id="screenshots"><picture><source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/readme/dark/hm-screenshots.svg"><source media="(prefers-color-scheme: dark)" srcset="assets/readme/dark/h-screenshots.svg"><source media="(max-width: 640px)" srcset="assets/readme/light/hm-screenshots.svg"><img src="assets/readme/light/h-screenshots.svg" alt="Application Screenshots" width="100%"></picture></h3>
 
 <div align="center">
-
-<p align="center">
-  <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/add_url_default_dark.png" height="340" alt="Add URL Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/provider_default_dark.png" height="340" alt="Provider Selection Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/url_default_dark.png" height="340" alt="URL Details Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/generate_qr_code_default_dark.png" height="340" alt="QR Code Screen"/>
-  <img loading="lazy" src="app/src/test/screenshots/settings_default_dark.png" height="340" alt="Settings Screen"/>
-</p>
-
-<br/>
 
 <p align="center">
   <img loading="lazy" src="app/src/test/screenshots/main_default_dark.png" height="340" alt="Main Screen"/>

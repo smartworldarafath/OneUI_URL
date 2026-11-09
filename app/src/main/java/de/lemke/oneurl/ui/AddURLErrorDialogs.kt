@@ -25,8 +25,8 @@ import de.lemke.commonutils.ui.utils.openURL
 import de.lemke.commonutils.ui.utils.singleLaunchActivity
 import de.lemke.commonutils.ui.utils.toast
 import de.lemke.oneurl.R
-import de.lemke.oneurl.domain.generateURL.GenerateURLError
-import de.lemke.oneurl.domain.generateURL.HttpStatusCode
+import de.lemke.oneurl.domain.model.GenerateURLError
+import de.lemke.oneurl.domain.model.HttpStatusCode
 import de.lemke.commonutils.R as commonutilsR
 
 private const val MAX_PROVIDER_TEXT_LENGTH = 150
@@ -81,6 +81,7 @@ private fun simpleErrorMessageRes(error: GenerateURLError): Int =
         GenerateURLError.ServiceOffline -> R.string.error_service_offline
         GenerateURLError.RateLimitExceeded -> R.string.error_rate_limit_exceeded
         GenerateURLError.DomainNotAllowed -> R.string.error_domain_not_allowed
+        GenerateURLError.TlyKeyRejected -> R.string.error_tly_key_rejected
         else -> commonutilsR.string.commonutils_error_unknown
     }
 

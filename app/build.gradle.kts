@@ -21,11 +21,13 @@ import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.gradle.secrets)
     alias(libs.plugins.aboutlibraries)
     alias(libs.plugins.detekt)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.dependency.analysis)
     alias(libs.plugins.kover)
     alias(libs.plugins.android.junit)
     alias(libs.plugins.baselineprofile)
@@ -78,7 +80,7 @@ android {
     }
     // Exported Room schemas as androidTest assets, so MigrationTestHelper can build a prior-version
     // database from de.lemke.oneurl.data.database.AppDatabase/<version>.json.
-    sourceSets.getByName("androidTest").assets.srcDirs("$projectDir/schemas")
+    sourceSets.getByName("androidTest").assets.directories += "$projectDir/schemas"
     @Suppress("UnstableApiUsage")
     androidResources.localeFilters += listOf("en", "de")
     signingConfigs {
@@ -180,34 +182,40 @@ androidComponents {
 dependencies {
     implementation(libs.oneui.design)
     implementation(libs.oneui.icons)
+    implementation(libs.androidx.collection)
+    implementation(libs.androidx.constraintlayout)
     implementation(libs.common.utils)
     implementation(libs.bundler)
-    implementation(libs.coroutines.android)
+    implementation(libs.coroutines.core)
+    runtimeOnly(libs.coroutines.android)
     implementation(libs.volley)
-    implementation(libs.bundles.room)
+    implementation(libs.ksafe)
+    implementation(libs.room.runtime)
     implementation(libs.hilt.android)
+    implementation(libs.kotlinx.serialization.json)
     ksp(libs.room.compiler)
     ksp(libs.hilt.compiler)
 
-    implementation(libs.profileinstaller)
+    runtimeOnly(libs.profileinstaller)
     baselineProfile(project(":benchmarks"))
     debugImplementation(libs.leakcanary)
 
     testImplementation(testFixtures(libs.common.utils))
 
-    testFixturesImplementation(libs.bundles.room)
+    testFixturesImplementation(libs.room.runtime)
     testFixturesImplementation(libs.hilt.android.testing)
     testFixturesImplementation(libs.junit4)
+    testFixturesImplementation(libs.kotest.assertions.core)
+    testFixturesImplementation(libs.coroutines.test)
     testFixturesImplementation(testFixtures(libs.common.utils))
     kspTestFixtures(libs.hilt.compiler)
 
-    testImplementation(libs.arch.core.testing)
     testImplementation(libs.bundles.unit.test)
     testImplementation(libs.bundles.robolectric.test)
     testImplementation(libs.hilt.android.testing)
     testImplementation(libs.konsist)
-    testImplementation(libs.junit.jupiter)
     testImplementation(libs.junit4)
+    testRuntimeOnly(libs.apache.httpcore)
     testRuntimeOnly(libs.junit.platform.launcher)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.vintage.engine)
@@ -215,7 +223,7 @@ dependencies {
 
     androidTestImplementation(testFixtures(libs.common.utils))
     androidTestImplementation(libs.bundles.android.test)
-    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.junit4)
     androidTestImplementation(libs.turbine)
     androidTestImplementation(libs.kotest.assertions.core)
     androidTestImplementation(libs.coroutines.test)
@@ -248,6 +256,7 @@ spotless {
 detekt {
     toolVersion = libs.versions.detekt.get()
     config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    source.setFrom(layout.projectDirectory.dir("src"))
     buildUponDefaultConfig = true
     parallel = true
     autoCorrect = false
@@ -305,7 +314,7 @@ kover {
             verify {
                 rule {
                     minBound(99, coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.INSTRUCTION)
-                    minBound(95, coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
+                    minBound(96, coverageUnits = kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
                 }
             }
         }

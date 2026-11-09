@@ -26,18 +26,20 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SeslSeekBar
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.Lifecycle.State.RESUMED
-import androidx.picker3.app.SeslColorPickerDialog
 import dagger.hilt.android.AndroidEntryPoint
-import de.lemke.commonutils.data.SettingsRepository
+import de.lemke.commonutils.ui.utils.BitmapExport
+import de.lemke.commonutils.ui.utils.InAppReview
 import de.lemke.commonutils.ui.utils.bindColorSwatch
 import de.lemke.commonutils.ui.utils.collectState
+import de.lemke.commonutils.ui.utils.launchBitmapExport
 import de.lemke.commonutils.ui.utils.onSingleLaunchClick
 import de.lemke.commonutils.ui.utils.prepareActivityTransformationTo
 import de.lemke.commonutils.ui.utils.registerForSingleLaunchResult
 import de.lemke.commonutils.ui.utils.setCustomBackAnimation
 import de.lemke.commonutils.ui.utils.setWindowTransparent
-import de.lemke.commonutils.ui.utils.showOnce
+import de.lemke.commonutils.ui.utils.showColorPickerOnce
 import de.lemke.commonutils.ui.utils.singleLaunchMenuItem
+import de.lemke.commonutils.ui.utils.toDocumentPick
 import de.lemke.oneurl.R
 import de.lemke.oneurl.databinding.ActivityGenerateQrCodeBinding
 import dev.oneuiproject.oneui.delegates.AppBarAwareYTranslator
@@ -52,7 +54,7 @@ private const val MAX_SIZE = 1024
 @AndroidEntryPoint
 class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwareYTranslator() {
     @Inject
-    lateinit var settings: SettingsRepository
+    lateinit var inAppReview: InAppReview
 
     private lateinit var binding: ActivityGenerateQrCodeBinding
     private val viewModel: GenerateQRCodeViewModel by viewModels()
@@ -78,7 +80,7 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        val enabled = viewModel.export.value != QRCodeExport.Running
+        val enabled = viewModel.export.value != BitmapExport.Running
         menu.findItem(R.id.menu_item_qr_save_as_image).isEnabled = enabled
         menu.findItem(R.id.menu_item_qr_share).isEnabled = enabled
         return super.onPrepareOptionsMenu(menu)
@@ -102,22 +104,20 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
     private fun collectState() =
         collectState(viewModel.state) { state ->
             binding.qrCode.setImageBitmap(state.qrCode)
-            binding.colorButtonForeground.bindColorSwatch(state.foregroundColor)
-            binding.colorButtonBackground.bindColorSwatch(state.backgroundColor)
+            binding.colorButtonForeground.bindColorSwatch(state.style.foregroundColor)
+            binding.colorButtonBackground.bindColorSwatch(state.style.backgroundColor)
             if (!isInitialized) {
                 isInitialized = true
                 initControls(state)
-                setCustomBackAnimation(binding.root, inAppReview = settings)
-                binding.qrCode.translateYWithAppBar(binding.toolbarLayout.appBarLayout, this@GenerateQRCodeActivity)
             }
         }
 
-    private fun onExport(export: QRCodeExport) {
-        if (export is QRCodeExport.Result && launchQRCodeExport(export, exportQRCodeResultLauncher)) viewModel.onExportHandled(export)
+    private fun onExport(export: BitmapExport) {
+        if (export is BitmapExport.Result && launchBitmapExport(export, exportQRCodeResultLauncher)) viewModel.onExportHandled(export)
     }
 
-    private fun renderExportControls(export: QRCodeExport) {
-        binding.qrCode.isClickable = export != QRCodeExport.Running
+    private fun renderExportControls(export: BitmapExport) {
+        binding.qrCode.isClickable = export != BitmapExport.Running
         invalidateOptionsMenu()
     }
 
@@ -126,6 +126,8 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
         initSizeControls(initialState)
         initToggles(initialState)
         initColorButtons()
+        setCustomBackAnimation(binding.root, inAppReview = inAppReview)
+        binding.qrCode.translateYWithAppBar(binding.toolbarLayout.appBarLayout, this)
     }
 
     private fun initUrlField(initialState: QrUiState) {
@@ -136,7 +138,7 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
     }
 
     private fun initSizeControls(initialState: QrUiState) {
-        binding.sizeEdittext.setText(String.format(Locale.ROOT, "%d", initialState.size))
+        binding.sizeEdittext.setText(String.format(Locale.ROOT, "%d", initialState.style.size))
         binding.sizeEdittext.setOnEditorActionListener { textView, _, _ ->
             val newSize = textView.text.toString().toIntOrNull()
             if (newSize != null) {
@@ -150,7 +152,7 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
         }
         binding.sizeSeekbar.max = MAX_SIZE
         binding.sizeSeekbar.min = MIN_SIZE
-        binding.sizeSeekbar.progress = initialState.size
+        binding.sizeSeekbar.progress = initialState.style.size
         binding.sizeSeekbar.setOnSeekBarChangeListener(
             object : SeslSeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(
@@ -174,18 +176,18 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
     }
 
     private fun initToggles(initialState: QrUiState) {
-        binding.frameCheckbox.isChecked = initialState.roundedFrame
+        binding.frameCheckbox.isChecked = initialState.style.roundedFrame
         binding.frameCheckbox.setOnCheckedChangeListener { _: CompoundButton?, isChecked: Boolean -> viewModel.setRoundedFrame(isChecked) }
 
-        binding.iconCheckbox.isChecked = initialState.icon
+        binding.iconCheckbox.isChecked = initialState.style.icon
         binding.iconCheckbox.setOnCheckedChangeListener { _: CompoundButton?, isChecked: Boolean -> viewModel.setIcon(isChecked) }
 
-        binding.tintBorderCheckbox.isChecked = initialState.tintBorder
+        binding.tintBorderCheckbox.isChecked = initialState.style.tintBorder
         binding.tintBorderCheckbox.setOnCheckedChangeListener { _: CompoundButton?, isChecked: Boolean ->
             viewModel.setTintBorder(isChecked)
         }
 
-        binding.tintAnchorCheckbox.isChecked = initialState.tintAnchor
+        binding.tintAnchorCheckbox.isChecked = initialState.style.tintAnchor
         binding.tintAnchorCheckbox.setOnCheckedChangeListener { _: CompoundButton?, isChecked: Boolean ->
             viewModel.setTintAnchor(isChecked)
         }
@@ -194,23 +196,22 @@ class GenerateQRCodeActivity : AppCompatActivity(), ViewYTranslator by AppBarAwa
     private fun initColorButtons() {
         binding.colorButtonBackground.onSingleLaunchClick {
             val state = viewModel.state.value
-            showColorPicker(BACKGROUND_COLOR_PICKER_TAG, state.backgroundColor, state.recentBackgroundColors, viewModel::setBackgroundColor)
+            showColorPickerOnce(
+                BACKGROUND_COLOR_PICKER_TAG,
+                state.style.backgroundColor,
+                state.recentBackgroundColors,
+                viewModel::setBackgroundColor,
+            )
         }
         binding.colorButtonForeground.onSingleLaunchClick {
             val state = viewModel.state.value
-            showColorPicker(FOREGROUND_COLOR_PICKER_TAG, state.foregroundColor, state.recentForegroundColors, viewModel::setForegroundColor)
+            showColorPickerOnce(
+                FOREGROUND_COLOR_PICKER_TAG,
+                state.style.foregroundColor,
+                state.recentForegroundColors,
+                viewModel::setForegroundColor,
+            )
         }
-    }
-
-    private fun showColorPicker(
-        tag: String,
-        currentColor: Int,
-        recentColors: List<Int>,
-        onColorPicked: (Int) -> Unit,
-    ) {
-        SeslColorPickerDialog(this, onColorPicked, currentColor, recentColors.toIntArray(), true)
-            .apply { setTransparencyControlEnabled(true) }
-            .showOnce(tag)
     }
 
     companion object {

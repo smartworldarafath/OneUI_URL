@@ -22,10 +22,10 @@ import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import de.lemke.commonutils.HiltTestRule
 import de.lemke.commonutils.ui.activity.CommonUtilsSettingsActivity
 import de.lemke.commonutils.ui.utils.setupCommonUtilsSettingsActivity
-import de.lemke.oneurl.HiltTestRule
-import de.lemke.oneurl.R
+import de.lemke.oneurl.settingsPreferences
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -33,9 +33,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import de.lemke.commonutils.R as commonutilsR
 
-// sdk = [36]: Robolectric 4.16.1 max supported SDK; bump when 4.17+ adds SDK 37.
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [36])
@@ -47,12 +45,7 @@ class SettingsActivityScreenshotTest {
     @Before
     fun setup() {
         hiltRule.inject()
-        setupCommonUtilsSettingsActivity(
-            commonutilsR.xml.preferences_design,
-            R.xml.preferences,
-            commonutilsR.xml.preferences_dev_options_delete_app_data,
-            commonutilsR.xml.preferences_more_info,
-        )
+        setupCommonUtilsSettingsActivity(settingsPreferences)
     }
 
     @Test

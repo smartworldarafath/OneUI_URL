@@ -45,7 +45,10 @@ const ICONS = {
   sparkles: `<path d="M9 3L7.5 7.5 3 9l4.5 1.5L9 15l1.5-4.5L15 9l-4.5-1.5z M19 11l-1 3-3 1 3 1 1 3 1-3 3-1-3-1z M17 3l-.6 1.8L14.6 5.4l1.8.6.6 1.8.6-1.8 1.8-.6-1.8-.6z" fill="PLACEHOLDER_COLOR"/>`,
   network: `<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="PLACEHOLDER_COLOR"/>`,
   speed: `<path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.28-10.43z M10.59 15.41a2 2 0 1 0 2.83-2.83l-3.07-3.07-1.41 1.41 1.65 4.49z" fill="PLACEHOLDER_COLOR"/>`,
-  sync: `<path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="PLACEHOLDER_COLOR"/>`
+  sync: `<path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="PLACEHOLDER_COLOR"/>`,
+  key: `<path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="PLACEHOLDER_COLOR"/>`,
+  backup: `<path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" fill="PLACEHOLDER_COLOR"/>`,
+  tablet: `<path d="M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H3V6h18v12zm-9-1c.55 0 1-.45 1-1s-.45-1-1-1-1 .45-1 1 .45 1 1 1z" fill="PLACEHOLDER_COLOR"/>`
 };
 
 function renderIcon(name, size, color) {
@@ -406,6 +409,8 @@ generateCard({ name: 'qrcode', title: 'QR Code Engine & Share', lines: ['Render 
 generateCard({ name: 'autocopy', title: 'Auto-Copy to Clipboard', lines: ['Streamline links workflow with zero manual tapping.', 'Shortened URLs automatically synchronize to Android', 'system clipboard with subtle tactile confirmation.'], icon: 'copy', flowerDark: '#3A5E53', flowerLight: '#CCE8DE', iconDark: '#FFFFFF', iconLight: '#042018' });
 generateCard({ name: 'history', title: 'Offline Room Database', lines: ['Local persistence via SQLite Room DB with reactive Flows.', 'Track creation dates, visit analytics, and bookmark', 'essential links into your Favorites tab.'], icon: 'database', flowerDark: '#455173', flowerLight: '#D8E2FF', iconDark: '#FFFFFF', iconLight: '#001A41' });
 generateCard({ name: 'speed', title: 'Baseline Profile Boost', lines: ['Pre-compiled DEX baseline profiles accelerate startup', 'times and reduce frame drops during list scrolling,', 'delivering a snappy 120Hz smooth experience.'], icon: 'speed', flowerDark: '#8A5128', flowerLight: '#FFDCC1', iconDark: '#FFFFFF', iconLight: '#351500' });
+generateCard({ name: 'backup', title: 'URL Backup & Restore', lines: ['Export and import URL database with transactional', 'integrity verification in Settings, ensuring your short', 'links and click statistics migrate seamlessly.'], icon: 'backup', flowerDark: '#2E6A45', flowerLight: '#C3EED0', iconDark: '#FFFFFF', iconLight: '#00210E' });
+generateCard({ name: 'tly', title: 'T.LY Key & Analytics', lines: ['Bring your own T.LY API key stored securely with KSafe.', 'Bypass shared rate limits, customize domain tags, and', 'track Spoo.me 90-day analytics with ease.'], icon: 'key', flowerDark: '#6750A4', flowerLight: '#EADDFF', iconDark: '#FFFFFF', iconLight: '#21005D' });
 
 // Tech Stack Pills (height: 42px)
 generateStackPill({ name: 'kotlin', label: 'Kotlin 2.x', icon: 'code', flowerDark: '#6750A4', flowerLight: '#EADDFF', iconDark: '#FFFFFF', iconLight: '#21005D', width: 136 });

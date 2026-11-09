@@ -25,11 +25,12 @@ import com.airbnb.lottie.LottieAnimationView
 import com.github.takahirom.roborazzi.captureRoboImage
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import de.lemke.commonutils.HiltTestRule
 import de.lemke.commonutils.bypassOobe
 import de.lemke.commonutils.data.SettingsRepository
-import de.lemke.oneurl.HiltTestRule
+import de.lemke.commonutils.idleMainLooper
 import de.lemke.oneurl.data.URLRepository
-import de.lemke.oneurl.domain.model.ShortURLProviderCompanion
+import de.lemke.oneurl.domain.model.Dagd
 import de.lemke.oneurl.domain.model.URL
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -43,7 +44,6 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-// sdk = [36]: Robolectric 4.16.1 max supported SDK; bump when 4.17+ adds SDK 37.
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class, sdk = [36])
@@ -90,7 +90,7 @@ class MainActivityScreenshotTest {
 
     private fun launchAndCapture(fileName: String) {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            shadowOf(android.os.Looper.getMainLooper()).idle()
+            idleMainLooper()
             // Lottie drives its own Choreographer-based animator, independent of the Looper
             // queue idle() drains above — an autoplaying/looping view is otherwise captured at
             // a timing-dependent frame. Pin every one to frame 0 for a deterministic screenshot.
@@ -122,7 +122,7 @@ class MainActivityScreenshotTest {
     ) = URL(
         shortURL = shortURL,
         longURL = "https://example.com/${title.lowercase().replace(' ', '-')}",
-        shortURLProvider = ShortURLProviderCompanion.default,
+        shortURLProvider = Dagd,
         favorite = favorite,
         title = title,
         description = description,
